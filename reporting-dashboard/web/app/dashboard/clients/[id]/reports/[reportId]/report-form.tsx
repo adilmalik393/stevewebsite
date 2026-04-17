@@ -117,6 +117,7 @@ export function ReportForm({
   clientId,
   companyName,
   ticker,
+  publishedSlug,
   initialMeta,
   initialPayload,
 }: {
@@ -124,6 +125,8 @@ export function ReportForm({
   clientId: string;
   companyName: string;
   ticker: string | null;
+  /** When set, server PDF download is available for the published report. */
+  publishedSlug?: string | null;
   initialMeta: { campaign_name: string; campaign_start: string; campaign_end: string };
   initialPayload: ReportPayload;
 }) {
@@ -152,6 +155,15 @@ export function ReportForm({
   const update = useCallback((patch: Partial<ReportPayload>) => {
     setP((prev) => ({ ...prev, ...patch }));
   }, []);
+
+  const updateTopContent = useCallback(
+    (index: number, patch: { platform?: string; engagement_count?: number; why_it_worked?: string; screenshot_data_url?: string }) => {
+      const arr = [...(p.top_content || [])];
+      arr[index] = { ...arr[index], ...patch };
+      update({ top_content: arr });
+    },
+    [p.top_content, update]
+  );
 
   // Auto-save debounce
   useEffect(() => {
@@ -316,38 +328,47 @@ export function ReportForm({
               <Field label="Platform">
                 <Input
                   value={item.platform}
-                  onChange={(v) => {
-                    const arr = [...(p.top_content || [])];
-                    arr[i] = { ...arr[i], platform: v };
-                    update({ top_content: arr });
-                  }}
+                  onChange={(v) => updateTopContent(i, { platform: v })}
                   placeholder="X / Reddit / etc"
                 />
               </Field>
               <Field label="Engagements">
                 <NumberInput
                   value={item.engagement_count}
-                  onChange={(v) => {
-                    const arr = [...(p.top_content || [])];
-                    arr[i] = { ...arr[i], engagement_count: v || 0 };
-                    update({ top_content: arr });
-                  }}
+                  onChange={(v) => updateTopContent(i, { engagement_count: v || 0 })}
                   placeholder="0"
                 />
               </Field>
               <Field label="Why it worked">
                 <Input
                   value={item.why_it_worked}
-                  onChange={(v) => {
-                    const arr = [...(p.top_content || [])];
-                    arr[i] = { ...arr[i], why_it_worked: v };
-                    update({ top_content: arr });
-                  }}
+                  onChange={(v) => updateTopContent(i, { why_it_worked: v })}
                   placeholder="Strong hook + real numbers"
                 />
               </Field>
-              <div className="flex items-end">
+              <div className="flex items-end justify-between gap-2">
+                <label className="text-xs text-[#A0AEC0] cursor-pointer hover:text-white transition">
+                  Upload
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const result = reader.result;
+                        if (typeof result === "string") {
+                          updateTopContent(i, { screenshot_data_url: result });
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
                 <button
+                  type="button"
                   onClick={() => {
                     const arr = (p.top_content || []).filter((_, j) => j !== i);
                     update({ top_content: arr });
@@ -357,14 +378,25 @@ export function ReportForm({
                   Remove
                 </button>
               </div>
+              {item.screenshot_data_url && (
+                <div className="md:col-span-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.screenshot_data_url}
+                    alt={`${item.platform || "Top content"} screenshot`}
+                    className="w-full max-w-md rounded-lg border border-[#252B35]"
+                  />
+                </div>
+              )}
             </div>
           ))}
           <button
+            type="button"
             onClick={() =>
               update({
                 top_content: [
                   ...(p.top_content || []),
-                  { platform: "", engagement_count: 0, why_it_worked: "" },
+                  { platform: "", engagement_count: 0, why_it_worked: "", screenshot_data_url: "" },
                 ],
               })
             }
@@ -432,6 +464,7 @@ export function ReportForm({
                 placeholder="Qualitative impact statement"
               />
               <button
+                type="button"
                 onClick={() => {
                   const arr = (p.market_impact_bullets || []).filter((_, j) => j !== i);
                   update({ market_impact_bullets: arr });
@@ -443,6 +476,7 @@ export function ReportForm({
             </div>
           ))}
           <button
+            type="button"
             onClick={() =>
               update({ market_impact_bullets: [...(p.market_impact_bullets || []), ""] })
             }
@@ -475,6 +509,7 @@ export function ReportForm({
                   placeholder="Next step"
                 />
                 <button
+                  type="button"
                   onClick={() => {
                     const arr = (p.next_steps_bullets || []).filter((_, j) => j !== i);
                     update({ next_steps_bullets: arr });
@@ -486,6 +521,7 @@ export function ReportForm({
               </div>
             ))}
             <button
+              type="button"
               onClick={() =>
                 update({ next_steps_bullets: [...(p.next_steps_bullets || []), ""] })
               }
@@ -503,6 +539,7 @@ export function ReportForm({
           </div>
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={() => {
                 window.open(`/r/preview?reportId=${reportId}`, "_blank");
               }}
@@ -510,7 +547,26 @@ export function ReportForm({
             >
               Preview
             </button>
+            {publishedSlug ? (
+              <a
+                href={`/api/reports/${encodeURIComponent(publishedSlug)}/pdf`}
+                className="px-4 py-2 text-sm border border-[#252B35] text-[#00E5FF] rounded-lg hover:border-[#353B45] transition inline-block"
+              >
+                Download PDF
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  window.open(`/r/preview?reportId=${reportId}&print=1`, "_blank");
+                }}
+                className="px-4 py-2 text-sm border border-[#252B35] text-[#A0AEC0] rounded-lg hover:text-white hover:border-[#353B45] transition"
+              >
+                Print to PDF (draft)
+              </button>
+            )}
             <button
+              type="button"
               disabled={publishing}
               onClick={async () => {
                 setPublishing(true);

@@ -16,6 +16,8 @@ Create `.env` in `reporting-dashboard/web/`:
 ```env
 BETTER_AUTH_SECRET=Gh0svP42WAymBeIXRPgrD6PnmwlhnHLKHjVHd8wS2dw=
 BETTER_AUTH_URL=http://localhost:3000
+# Optional: base URL Playwright uses to open `/r/{slug}?pdf=1` when generating PDFs (defaults to BETTER_AUTH_URL or http://127.0.0.1:3000)
+# PDF_BASE_URL=http://localhost:3000
 ```
 
 ### Database setup (first time only)
@@ -61,6 +63,16 @@ Or just use the `/register` page in the browser.
 | `/dashboard/clients/[id]` | protected | Client detail — create/list/publish/duplicate/delete reports |
 | `/dashboard/clients/[id]/reports/[reportId]` | protected | Report editor (all fields) |
 | `/r/[slug]` | **public** | Branded 12-slide report for clients (no login, no dashboard branding) |
+| `GET /api/reports/[slug]/pdf` | **public** | Server-generated PDF (Playwright) for **published** reports only — PRD §6.6 filename |
+
+### Server PDF (PRD §14)
+
+1. Install deps: `npm install` (includes `playwright`).
+2. Install Chromium once: `npx playwright install chromium` (needs ~400MB free disk).
+3. Run the app (`npm run dev` or `npm start`). PDF generation opens `PDF_BASE_URL` or `BETTER_AUTH_URL` + `/r/{slug}?pdf=1` in headless Chromium, then returns the PDF file.
+4. **Production:** set `PDF_BASE_URL` to the public origin the server can reach (often same as the deployed site URL).
+
+**Note:** Heavy serverless hosts (e.g. small Vercel functions) may hit size or time limits with Playwright. For production PDFs at scale, run this app on a **Node server / container** with enough RAM, or offload PDF generation to a dedicated worker.
 
 ## Tech stack
 
@@ -68,6 +80,7 @@ Or just use the `/register` page in the browser.
 - **Better Auth** (email + password, SQLite-backed)
 - **SQLite** via better-sqlite3 (`data/app.db`)
 - **Tailwind CSS** with EDM brand kit
+- **Playwright** (headless Chromium) for `/api/reports/[slug]/pdf`
 - **TypeScript**
 
 ## Key files

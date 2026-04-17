@@ -62,6 +62,7 @@ export default async function ReportEditorPage(props: {
         clientId={id}
         companyName={client.company_name}
         ticker={client.ticker}
+        publishedSlug={report.status === "published" && report.slug ? report.slug : null}
         initialMeta={{
           campaign_name: report.campaign_name,
           campaign_start: report.campaign_start || "",

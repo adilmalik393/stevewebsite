@@ -150,6 +150,7 @@ export interface ReportPayload {
     engagement_count: number;
     why_it_worked: string;
     screenshot_id?: string;
+    screenshot_data_url?: string;
   }[];
   // PPC (optional)
   ppc_enabled?: boolean;
