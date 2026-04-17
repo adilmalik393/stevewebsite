@@ -21,7 +21,7 @@ export async function GET(
   context: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await context.params;
-  const report = getReportBySlug(slug);
+  const report = await getReportBySlug(slug);
   if (!report) {
     return NextResponse.json({ error: "Report not found or not published" }, { status: 404 });
   }

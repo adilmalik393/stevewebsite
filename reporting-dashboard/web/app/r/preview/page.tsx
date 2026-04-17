@@ -14,10 +14,10 @@ export default async function PreviewReportPage(props: {
   const { reportId } = await props.searchParams;
   if (!reportId) notFound();
 
-  const report = getReport(reportId);
+  const report = await getReport(reportId);
   if (!report) notFound();
 
-  const client = getClient(report.client_id);
+  const client = await getClient(report.client_id);
   if (!client || client.user_id !== session.user.id) notFound();
 
   const payload: ReportPayload = JSON.parse(report.payload || "{}");

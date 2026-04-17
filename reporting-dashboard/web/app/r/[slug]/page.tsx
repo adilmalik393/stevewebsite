@@ -9,7 +9,7 @@ export default async function PublicReportPage(props: {
 }) {
   const { slug } = await props.params;
   const { pdf: pdfParam } = await props.searchParams;
-  const report = getReportBySlug(slug);
+  const report = await getReportBySlug(slug);
   if (!report) notFound();
 
   const payload: ReportPayload = JSON.parse(report.payload || "{}");

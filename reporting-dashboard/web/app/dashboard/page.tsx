@@ -10,7 +10,7 @@ export default async function DashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/login");
 
-  const clients = listClients(session.user.id);
+  const clients = await listClients(session.user.id);
 
   return (
     <div className="min-h-screen bg-[#0B0F14] text-white">

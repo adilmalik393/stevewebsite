@@ -10,10 +10,10 @@ export default async function ClientPage(props: { params: Promise<{ id: string }
   if (!session) redirect("/login");
 
   const { id } = await props.params;
-  const client = getClient(id);
+  const client = await getClient(id);
   if (!client || client.user_id !== session.user.id) notFound();
 
-  const reports = listReports(id);
+  const reports = await listReports(id);
 
   return (
     <div className="min-h-screen bg-[#0B0F14] text-white">

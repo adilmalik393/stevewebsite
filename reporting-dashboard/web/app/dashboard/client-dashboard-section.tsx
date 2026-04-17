@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { removeClient, addClient } from "./actions";
 
@@ -58,7 +58,7 @@ function AddClientForm() {
   );
 }
 
-export function ClientDashboardSection({ clients }: { clients: ClientListRow[] }) {
+export function ClientDashboardSection({ clients, children }: { clients: ClientListRow[]; children?: React.ReactNode }) {
   const [query, setQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("default");
   const [scope, setScope] = useState<ScopeFilter>("all");
