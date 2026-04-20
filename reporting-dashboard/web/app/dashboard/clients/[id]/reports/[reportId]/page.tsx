@@ -12,10 +12,10 @@ export default async function ReportEditorPage(props: {
   if (!session) redirect("/login");
 
   const { id, reportId } = await props.params;
-  const client = getClient(id);
+  const client = await getClient(id);
   if (!client || client.user_id !== session.user.id) notFound();
 
-  const report = getReport(reportId);
+  const report = await getReport(reportId);
   if (!report || report.client_id !== id) notFound();
 
   return (
@@ -62,6 +62,7 @@ export default async function ReportEditorPage(props: {
         clientId={id}
         companyName={client.company_name}
         ticker={client.ticker}
+        publishedSlug={report.status === "published" && report.slug ? report.slug : null}
         initialMeta={{
           campaign_name: report.campaign_name,
           campaign_start: report.campaign_start || "",

@@ -3,12 +3,17 @@ import { notFound } from "next/navigation";
 import type { ReportPayload } from "@/lib/db";
 import { ReportViewer } from "./report-viewer";
 
-export default async function PublicReportPage(props: { params: Promise<{ slug: string }> }) {
+export default async function PublicReportPage(props: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ pdf?: string; print?: string }>;
+}) {
   const { slug } = await props.params;
-  const report = getReportBySlug(slug);
+  const { pdf: pdfParam } = await props.searchParams;
+  const report = await getReportBySlug(slug);
   if (!report) notFound();
 
   const payload: ReportPayload = JSON.parse(report.payload || "{}");
+  const pdfMode = pdfParam === "1";
 
   return (
     <ReportViewer
@@ -18,6 +23,8 @@ export default async function PublicReportPage(props: { params: Promise<{ slug: 
       campaignStart={report.campaign_start}
       campaignEnd={report.campaign_end}
       payload={payload}
+      publicSlug={slug}
+      pdfMode={pdfMode}
     />
   );
 }

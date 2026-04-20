@@ -31,7 +31,7 @@ export async function addClient(formData: FormData) {
 
   if (!company_name?.trim()) throw new Error("Company name is required");
 
-  createClient(user.id, {
+  await createClient(user.id, {
     company_name: company_name.trim(),
     ticker: ticker?.trim() || undefined,
     contact_email: contact_email?.trim() || undefined,
@@ -44,7 +44,7 @@ export async function addClient(formData: FormData) {
 export async function removeClient(formData: FormData) {
   await getUser();
   const clientId = formData.get("clientId") as string;
-  deleteClient(clientId);
+  await deleteClient(clientId);
   revalidatePath("/dashboard");
 }
 
@@ -59,7 +59,7 @@ export async function addReport(formData: FormData) {
 
   if (!campaign_name?.trim()) throw new Error("Campaign name is required");
 
-  const report = createReport(clientId, {
+  const report = await createReport(clientId, {
     campaign_name: campaign_name.trim(),
     campaign_start: campaign_start || undefined,
     campaign_end: campaign_end || undefined,
@@ -70,7 +70,7 @@ export async function addReport(formData: FormData) {
 
 export async function saveReportPayload(reportId: string, payload: string) {
   await getUser();
-  updateReport(reportId, { payload });
+  await updateReport(reportId, { payload });
   revalidatePath(`/dashboard`);
 }
 
@@ -79,26 +79,26 @@ export async function saveReportMeta(
   data: { campaign_name: string; campaign_start: string; campaign_end: string }
 ) {
   await getUser();
-  updateReport(reportId, data);
+  await updateReport(reportId, data);
   revalidatePath(`/dashboard`);
 }
 
 export async function publish(reportId: string) {
   await getUser();
-  const slug = publishReport(reportId);
+  const slug = await publishReport(reportId);
   revalidatePath(`/dashboard`);
   return slug;
 }
 
 export async function unpublish(reportId: string) {
   await getUser();
-  unpublishReport(reportId);
+  await unpublishReport(reportId);
   revalidatePath(`/dashboard`);
 }
 
 export async function duplicate(reportId: string, clientId: string) {
   await getUser();
-  const newReport = duplicateReport(reportId);
+  const newReport = await duplicateReport(reportId);
   revalidatePath(`/dashboard`);
   redirect(`/dashboard/clients/${clientId}/reports/${newReport.id}`);
 }
@@ -107,7 +107,7 @@ export async function removeReport(formData: FormData) {
   await getUser();
   const reportId = formData.get("reportId") as string;
   const clientId = formData.get("clientId") as string;
-  deleteReport(reportId);
+  await deleteReport(reportId);
   revalidatePath(`/dashboard`);
   redirect(`/dashboard/clients/${clientId}`);
 }

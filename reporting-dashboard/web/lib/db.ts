@@ -1,50 +1,52 @@
-import Database from "better-sqlite3";
-import path from "path";
+import { turso } from "./turso";
 import crypto from "crypto";
-
-const db = new Database(path.join(process.cwd(), "data", "app.db"));
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+import type { Row } from "@libsql/client";
 
 // --- Schema ---
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS client (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    company_name TEXT NOT NULL,
-    ticker TEXT,
-    contact_email TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+export async function initSchema() {
+  await turso.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS client (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      company_name TEXT NOT NULL,
+      ticker TEXT,
+      contact_email TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
 
-  CREATE TABLE IF NOT EXISTS report (
-    id TEXT PRIMARY KEY,
-    client_id TEXT NOT NULL REFERENCES client(id) ON DELETE CASCADE,
-    campaign_name TEXT NOT NULL DEFAULT '',
-    campaign_start TEXT,
-    campaign_end TEXT,
-    status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','published')),
-    slug TEXT UNIQUE,
-    payload TEXT NOT NULL DEFAULT '{}',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+    CREATE TABLE IF NOT EXISTS report (
+      id TEXT PRIMARY KEY,
+      client_id TEXT NOT NULL REFERENCES client(id) ON DELETE CASCADE,
+      campaign_name TEXT NOT NULL DEFAULT '',
+      campaign_start TEXT,
+      campaign_end TEXT,
+      status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','published')),
+      slug TEXT UNIQUE,
+      payload TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
 
-  CREATE TABLE IF NOT EXISTS asset (
-    id TEXT PRIMARY KEY,
-    report_id TEXT NOT NULL REFERENCES report(id) ON DELETE CASCADE,
-    kind TEXT NOT NULL DEFAULT 'screenshot',
-    file_path TEXT NOT NULL,
-    platform TEXT,
-    engagement_count INTEGER,
-    caption TEXT,
-    position INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-`);
+    CREATE TABLE IF NOT EXISTS asset (
+      id TEXT PRIMARY KEY,
+      report_id TEXT NOT NULL REFERENCES report(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL DEFAULT 'screenshot',
+      file_path TEXT NOT NULL,
+      platform TEXT,
+      engagement_count INTEGER,
+      caption TEXT,
+      position INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+}
 
 // --- Helpers ---
+
+function toObj<T>(row: Row, columns: string[]): T {
+  return Object.fromEntries(columns.map((col, i) => [col, row[i]])) as T;
+}
 
 function genId(): string {
   return crypto.randomBytes(12).toString("base64url");
@@ -54,7 +56,7 @@ function genSlug(): string {
   return crypto.randomBytes(7).toString("base64url").slice(0, 10);
 }
 
-// --- Client CRUD ---
+// --- Types ---
 
 export interface Client {
   id: string;
@@ -65,36 +67,6 @@ export interface Client {
   created_at: string;
 }
 
-export function createClient(
-  userId: string,
-  data: { company_name: string; ticker?: string; contact_email?: string }
-): Client {
-  const id = genId();
-  db.prepare(
-    `INSERT INTO client (id, user_id, company_name, ticker, contact_email) VALUES (?, ?, ?, ?, ?)`
-  ).run(id, userId, data.company_name, data.ticker || null, data.contact_email || null);
-  return getClient(id)!;
-}
-
-export function getClient(id: string): Client | null {
-  return db.prepare(`SELECT * FROM client WHERE id = ?`).get(id) as Client | null;
-}
-
-export function listClients(userId: string): (Client & { report_count: number })[] {
-  return db
-    .prepare(
-      `SELECT c.*, (SELECT COUNT(*) FROM report r WHERE r.client_id = c.id) AS report_count
-       FROM client c WHERE c.user_id = ? ORDER BY c.created_at DESC`
-    )
-    .all(userId) as (Client & { report_count: number })[];
-}
-
-export function deleteClient(id: string): void {
-  db.prepare(`DELETE FROM client WHERE id = ?`).run(id);
-}
-
-// --- Report CRUD ---
-
 export interface Report {
   id: string;
   client_id: string;
@@ -103,7 +75,7 @@ export interface Report {
   campaign_end: string | null;
   status: "draft" | "published";
   slug: string | null;
-  payload: string; // JSON string
+  payload: string;
   created_at: string;
   updated_at: string;
 }
@@ -150,6 +122,7 @@ export interface ReportPayload {
     engagement_count: number;
     why_it_worked: string;
     screenshot_id?: string;
+    screenshot_data_url?: string;
   }[];
   // PPC (optional)
   ppc_enabled?: boolean;
@@ -169,39 +142,95 @@ export interface ReportPayload {
   next_steps_bullets?: string[];
 }
 
-export function createReport(
+// --- Client CRUD ---
+
+export async function createClient(
+  userId: string,
+  data: { company_name: string; ticker?: string; contact_email?: string }
+): Promise<Client> {
+  const id = genId();
+  await turso.execute({
+    sql: `INSERT INTO client (id, user_id, company_name, ticker, contact_email) VALUES (?, ?, ?, ?, ?)`,
+    args: [id, userId, data.company_name, data.ticker || null, data.contact_email || null],
+  });
+  return (await getClient(id))!;
+}
+
+export async function getClient(id: string): Promise<Client | null> {
+  const result = await turso.execute({
+    sql: `SELECT * FROM client WHERE id = ?`,
+    args: [id],
+  });
+  if (result.rows.length === 0) return null;
+  return toObj<Client>(result.rows[0], result.columns);
+}
+
+export async function listClients(
+  userId: string
+): Promise<(Client & { report_count: number })[]> {
+  const result = await turso.execute({
+    sql: `SELECT c.*, (SELECT COUNT(*) FROM report r WHERE r.client_id = c.id) AS report_count
+          FROM client c WHERE c.user_id = ? ORDER BY c.created_at DESC`,
+    args: [userId],
+  });
+  return result.rows.map((row) =>
+    toObj<Client & { report_count: number }>(row, result.columns)
+  );
+}
+
+export async function deleteClient(id: string): Promise<void> {
+  await turso.execute({ sql: `DELETE FROM client WHERE id = ?`, args: [id] });
+}
+
+// --- Report CRUD ---
+
+export async function createReport(
   clientId: string,
   data: { campaign_name: string; campaign_start?: string; campaign_end?: string }
-): Report {
+): Promise<Report> {
   const id = genId();
-  db.prepare(
-    `INSERT INTO report (id, client_id, campaign_name, campaign_start, campaign_end)
-     VALUES (?, ?, ?, ?, ?)`
-  ).run(id, clientId, data.campaign_name, data.campaign_start || null, data.campaign_end || null);
-  return getReport(id)!;
+  await turso.execute({
+    sql: `INSERT INTO report (id, client_id, campaign_name, campaign_start, campaign_end)
+          VALUES (?, ?, ?, ?, ?)`,
+    args: [id, clientId, data.campaign_name, data.campaign_start || null, data.campaign_end || null],
+  });
+  return (await getReport(id))!;
 }
 
-export function getReport(id: string): Report | null {
-  return db.prepare(`SELECT * FROM report WHERE id = ?`).get(id) as Report | null;
+export async function getReport(id: string): Promise<Report | null> {
+  const result = await turso.execute({
+    sql: `SELECT * FROM report WHERE id = ?`,
+    args: [id],
+  });
+  if (result.rows.length === 0) return null;
+  return toObj<Report>(result.rows[0], result.columns);
 }
 
-export function getReportBySlug(slug: string): (Report & { company_name: string; ticker: string | null }) | null {
-  return db
-    .prepare(
-      `SELECT r.*, c.company_name, c.ticker FROM report r
-       JOIN client c ON c.id = r.client_id
-       WHERE r.slug = ? AND r.status = 'published'`
-    )
-    .get(slug) as (Report & { company_name: string; ticker: string | null }) | null;
+export async function getReportBySlug(
+  slug: string
+): Promise<(Report & { company_name: string; ticker: string | null }) | null> {
+  const result = await turso.execute({
+    sql: `SELECT r.*, c.company_name, c.ticker FROM report r
+          JOIN client c ON c.id = r.client_id
+          WHERE r.slug = ? AND r.status = 'published'`,
+    args: [slug],
+  });
+  if (result.rows.length === 0) return null;
+  return toObj<Report & { company_name: string; ticker: string | null }>(
+    result.rows[0],
+    result.columns
+  );
 }
 
-export function listReports(clientId: string): Report[] {
-  return db
-    .prepare(`SELECT * FROM report WHERE client_id = ? ORDER BY created_at DESC`)
-    .all(clientId) as Report[];
+export async function listReports(clientId: string): Promise<Report[]> {
+  const result = await turso.execute({
+    sql: `SELECT * FROM report WHERE client_id = ? ORDER BY created_at DESC`,
+    args: [clientId],
+  });
+  return result.rows.map((row) => toObj<Report>(row, result.columns));
 }
 
-export function updateReport(
+export async function updateReport(
   id: string,
   data: Partial<{
     campaign_name: string;
@@ -209,9 +238,9 @@ export function updateReport(
     campaign_end: string;
     payload: string;
   }>
-): void {
+): Promise<void> {
   const fields: string[] = [];
-  const values: unknown[] = [];
+  const values: (string | null)[] = [];
 
   if (data.campaign_name !== undefined) { fields.push("campaign_name = ?"); values.push(data.campaign_name); }
   if (data.campaign_start !== undefined) { fields.push("campaign_start = ?"); values.push(data.campaign_start); }
@@ -222,44 +251,48 @@ export function updateReport(
   fields.push("updated_at = datetime('now')");
   values.push(id);
 
-  db.prepare(`UPDATE report SET ${fields.join(", ")} WHERE id = ?`).run(...values);
+  await turso.execute({ sql: `UPDATE report SET ${fields.join(", ")} WHERE id = ?`, args: values });
 }
 
-export function publishReport(id: string): string {
-  const report = getReport(id);
+export async function publishReport(id: string): Promise<string> {
+  const report = await getReport(id);
   if (!report) throw new Error("Report not found");
   const slug = report.slug || genSlug();
-  db.prepare(`UPDATE report SET status = 'published', slug = ?, updated_at = datetime('now') WHERE id = ?`).run(
-    slug,
-    id
-  );
+  await turso.execute({
+    sql: `UPDATE report SET status = 'published', slug = ?, updated_at = datetime('now') WHERE id = ?`,
+    args: [slug, id],
+  });
   return slug;
 }
 
-export function unpublishReport(id: string): void {
-  db.prepare(`UPDATE report SET status = 'draft', updated_at = datetime('now') WHERE id = ?`).run(id);
+export async function unpublishReport(id: string): Promise<void> {
+  await turso.execute({
+    sql: `UPDATE report SET status = 'draft', updated_at = datetime('now') WHERE id = ?`,
+    args: [id],
+  });
 }
 
-export function duplicateReport(id: string): Report {
-  const original = getReport(id);
+export async function duplicateReport(id: string): Promise<Report> {
+  const original = await getReport(id);
   if (!original) throw new Error("Report not found");
   const newId = genId();
-  db.prepare(
-    `INSERT INTO report (id, client_id, campaign_name, campaign_start, campaign_end, payload)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).run(
-    newId,
-    original.client_id,
-    `${original.campaign_name} (copy)`,
-    original.campaign_start,
-    original.campaign_end,
-    original.payload
-  );
-  return getReport(newId)!;
+  await turso.execute({
+    sql: `INSERT INTO report (id, client_id, campaign_name, campaign_start, campaign_end, payload)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [
+      newId,
+      original.client_id,
+      `${original.campaign_name} (copy)`,
+      original.campaign_start,
+      original.campaign_end,
+      original.payload,
+    ],
+  });
+  return (await getReport(newId))!;
 }
 
-export function deleteReport(id: string): void {
-  db.prepare(`DELETE FROM report WHERE id = ?`).run(id);
+export async function deleteReport(id: string): Promise<void> {
+  await turso.execute({ sql: `DELETE FROM report WHERE id = ?`, args: [id] });
 }
 
-export default db;
+export default turso;

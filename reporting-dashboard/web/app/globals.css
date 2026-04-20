@@ -10,3 +10,20 @@ body {
   color: var(--foreground);
   font-family: "Inter", Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .pdf-slide {
+    break-after: page;
+    page-break-after: always;
+    min-height: 100vh;
+  }
+
+  #extended .pdf-slide {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}

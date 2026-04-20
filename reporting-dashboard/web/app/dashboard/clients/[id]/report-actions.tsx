@@ -1,15 +1,17 @@
 "use client";
 
 import { publish, unpublish, duplicate } from "../../actions";
+import { IconDuplicate, IconPublish, IconUnpublish, iconClass } from "./report-icons";
+
+const iconBtn =
+  "inline-flex items-center justify-center rounded-lg p-2 border border-transparent transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00E5FF]/40";
 
 export function PublishButton({
   reportId,
   status,
-  slug,
 }: {
   reportId: string;
   status: string;
-  slug: string | null;
 }) {
   async function handlePublish() {
     const newSlug = await publish(reportId);
@@ -27,20 +29,26 @@ export function PublishButton({
   if (status === "published") {
     return (
       <button
+        type="button"
         onClick={handleUnpublish}
-        className="text-xs text-[#A0AEC0] hover:text-white transition"
+        className={`${iconBtn} text-[#A0AEC0] hover:text-white hover:bg-[#252B35]/60 hover:border-[#353B45]`}
+        title="Unpublish"
+        aria-label="Unpublish"
       >
-        Unpublish
+        <IconUnpublish className={iconClass()} />
       </button>
     );
   }
 
   return (
     <button
+      type="button"
       onClick={handlePublish}
-      className="text-xs px-2 py-1 bg-[#00FF9D]/10 text-[#00FF9D] rounded hover:bg-[#00FF9D]/20 transition"
+      className={`${iconBtn} text-[#00FF9D] hover:bg-[#00FF9D]/15 hover:border-[#00FF9D]/25`}
+      title="Publish"
+      aria-label="Publish"
     >
-      Publish
+      <IconPublish className={iconClass()} />
     </button>
   );
 }
@@ -54,10 +62,13 @@ export function DuplicateButton({
 }) {
   return (
     <button
+      type="button"
       onClick={() => duplicate(reportId, clientId)}
-      className="text-xs text-[#A0AEC0] hover:text-white transition"
+      className={`${iconBtn} text-[#A0AEC0] hover:text-white hover:bg-[#252B35]/60 hover:border-[#353B45]`}
+      title="Duplicate"
+      aria-label="Duplicate"
     >
-      Duplicate
+      <IconDuplicate className={iconClass()} />
     </button>
   );
 }
