@@ -14,6 +14,7 @@ export type ReportListItem = {
   campaign_end: string | null;
   status: string;
   slug: string | null;
+  view_count?: number;
 };
 
 type StatusFilter = "all" | "draft" | "published";
@@ -25,7 +26,7 @@ function CreateReportSubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="px-4 py-2 bg-[#00E5FF] text-[#0B0F14] font-semibold rounded-lg text-sm hover:bg-[#00CCE5] disabled:opacity-60 disabled:cursor-not-allowed transition"
+      className="px-4 py-2 bg-[var(--accent)] text-white font-semibold rounded-lg text-sm hover:bg-[var(--accent-hover)] disabled:opacity-60 disabled:cursor-not-allowed transition"
     >
       {pending ? "Creating..." : "Create report"}
     </button>
@@ -86,14 +87,14 @@ export function ClientReportsSection({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search reports…"
-          className="flex-1 min-w-0 px-3 py-2.5 bg-[#151A22] border border-[#252B35] rounded-lg text-white text-sm placeholder-[#4A5568] focus:outline-none focus:border-[#00E5FF] transition"
+          className="flex-1 min-w-0 px-3 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm placeholder-[var(--placeholder)] focus:outline-none focus:border-[var(--accent)] transition"
           aria-label="Search reports"
         />
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="px-4 py-2.5 bg-[#00E5FF] text-[#0B0F14] font-semibold rounded-lg text-sm hover:bg-[#00CCE5] transition whitespace-nowrap"
+            className="px-4 py-2.5 bg-[var(--accent)] text-white font-semibold rounded-lg text-sm hover:bg-[var(--accent-hover)] transition whitespace-nowrap"
           >
             Create report
           </button>
@@ -103,15 +104,15 @@ export function ClientReportsSection({
               onClick={() => setFilterOpen((o) => !o)}
               className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition whitespace-nowrap ${
                 filterOpen || statusFilter !== "all"
-                  ? "border-[#00E5FF] text-[#00E5FF] bg-[#00E5FF]/10"
-                  : "border-[#252B35] text-[#A0AEC0] hover:text-white hover:border-[#353B45] bg-[#151A22]"
+                  ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent-bg)]"
+                  : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--hover-border)] bg-[var(--bg-surface)]"
               }`}
             >
               Filter
             </button>
             {filterOpen && (
               <div
-                className="absolute right-0 top-full mt-2 z-40 min-w-[180px] rounded-lg border border-[#252B35] bg-[#151A22] py-1 shadow-xl"
+                className="absolute right-0 top-full mt-2 z-40 min-w-[180px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] py-1 shadow-xl"
                 role="menu"
               >
                 {(
@@ -131,8 +132,8 @@ export function ClientReportsSection({
                     }}
                     className={`w-full text-left px-3 py-2 text-sm transition ${
                       statusFilter === value
-                        ? "text-[#00E5FF] bg-[#00E5FF]/10"
-                        : "text-[#A0AEC0] hover:bg-[#252B35] hover:text-white"
+                        ? "text-[var(--accent)] bg-[var(--accent-bg)]"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)]"
                     }`}
                   >
                     {label}
@@ -146,38 +147,49 @@ export function ClientReportsSection({
 
       <h2 className="text-xl font-bold mb-4">Reports</h2>
       {reports.length === 0 ? (
-        <div className="rounded-xl border border-[#252B35] bg-[#151A22] p-12 text-center">
-          <p className="text-[#4A5568]">No reports yet. Create one with Create report.</p>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-12 text-center">
+          <p className="text-[var(--text-faint)]">No reports yet. Create one with Create report.</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-[#252B35] bg-[#151A22] p-12 text-center">
-          <p className="text-[#4A5568]">No reports match your search or filter.</p>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-12 text-center">
+          <p className="text-[var(--text-faint)]">No reports match your search or filter.</p>
         </div>
       ) : (
         <div className="grid gap-3">
           {filtered.map((report) => (
             <div
               key={report.id}
-              className="rounded-xl border border-[#252B35] bg-[#151A22] p-4 flex items-center justify-between hover:border-[#353B45] transition"
+              className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex items-center justify-between hover:border-[var(--hover-border)] transition"
             >
               <Link href={`/dashboard/clients/${clientId}/reports/${report.id}`} className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <h3 className="font-semibold text-white truncate">
+                  <h3 className="font-semibold text-[var(--text-primary)] truncate">
                     {report.campaign_name || "Untitled"}
                   </h3>
                   <span
                     className={`text-xs px-2 py-0.5 rounded font-medium shrink-0 ${
                       report.status === "published"
-                        ? "bg-[#00FF9D]/10 text-[#00FF9D]"
-                        : "bg-[#252B35] text-[#A0AEC0]"
+                        ? "bg-[var(--success-bg)] text-[var(--success)]"
+                        : "text-[var(--text-faint)]"
                     }`}
                   >
                     {report.status}
                   </span>
                 </div>
-                <p className="text-xs text-[#4A5568] mt-1">
-                  {report.campaign_start || "No dates"}{" "}
-                  {report.campaign_end ? `→ ${report.campaign_end}` : ""}
+                <p className="text-xs text-[var(--text-faint)] mt-1 flex items-center gap-3">
+                  <span>
+                    {report.campaign_start || "No dates"}{" "}
+                    {report.campaign_end ? `→ ${report.campaign_end}` : ""}
+                  </span>
+                  {report.status === "published" && (
+                    <span className="flex items-center gap-1 text-[var(--text-muted)]">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                      {report.view_count ?? 0}
+                    </span>
+                  )}
                 </p>
               </Link>
               <div className="flex items-center gap-2 ml-4 shrink-0">
@@ -186,7 +198,7 @@ export function ClientReportsSection({
                     href={`/r/${report.slug}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center rounded-lg p-2 text-[#00E5FF] border border-transparent hover:bg-[#00E5FF]/10 hover:border-[#00E5FF]/30 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00E5FF]/40"
+                    className="inline-flex items-center justify-center rounded-lg p-2 text-[var(--accent)] border border-transparent hover:bg-[var(--accent-bg)] hover:border-[var(--accent-border-sm)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                     title="View public report"
                     aria-label="View public report"
                   >
@@ -200,7 +212,7 @@ export function ClientReportsSection({
                   <input type="hidden" name="clientId" value={clientId} />
                   <button
                     type="submit"
-                    className="inline-flex items-center justify-center rounded-lg p-2 text-[#4A5568] border border-transparent hover:text-[#FF4D4D] hover:bg-[#FF4D4D]/10 hover:border-[#FF4D4D]/20 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF4D4D]/40"
+                    className="inline-flex items-center justify-center rounded-lg p-2 text-[var(--text-faint)] border border-transparent hover:text-[var(--danger)] hover:bg-[var(--danger-bg)] hover:border-[var(--danger-border)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--danger)]"
                     title="Delete"
                     aria-label="Delete"
                   >
@@ -222,7 +234,7 @@ export function ClientReportsSection({
           }}
         >
           <div
-            className="w-full max-w-2xl rounded-xl border border-[#252B35] bg-[#151A22] p-6 shadow-2xl"
+            className="w-full max-w-2xl rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="new-report-title"
@@ -231,14 +243,14 @@ export function ClientReportsSection({
             <div className="flex items-start justify-between gap-4 mb-4">
               <h3
                 id="new-report-title"
-                className="text-sm font-semibold text-[#A0AEC0] uppercase tracking-wider"
+                className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider"
               >
                 New campaign report
               </h3>
               <button
                 type="button"
                 onClick={closeCreate}
-                className="text-[#4A5568] hover:text-white text-lg leading-none px-1"
+                className="text-[var(--text-faint)] hover:text-[var(--text-primary)] text-lg leading-none px-1"
                 aria-label="Close"
               >
                 ×
@@ -248,28 +260,28 @@ export function ClientReportsSection({
               <input type="hidden" name="clientId" value={clientId} />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs text-[#A0AEC0] mb-1">Campaign name *</label>
+                  <label className="block text-xs text-[var(--text-secondary)] mb-1">Campaign name *</label>
                   <input
                     name="campaign_name"
                     required
                     placeholder="Q1 2026 Signal Campaign"
-                    className="w-full px-3 py-2 bg-[#0B0F14] border border-[#252B35] rounded-lg text-white text-sm placeholder-[#4A5568] focus:outline-none focus:border-[#00E5FF] transition"
+                    className="w-full px-3 py-2 bg-[var(--bg-base)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm placeholder-[var(--placeholder)] focus:outline-none focus:border-[var(--accent)] transition"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-[#A0AEC0] mb-1">Start date</label>
+                  <label className="block text-xs text-[var(--text-secondary)] mb-1">Start date</label>
                   <input
                     name="campaign_start"
                     type="date"
-                    className="w-full px-3 py-2 bg-[#0B0F14] border border-[#252B35] rounded-lg text-white text-sm focus:outline-none focus:border-[#00E5FF] transition"
+                    className="w-full px-3 py-2 bg-[var(--bg-base)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--accent)] transition"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-[#A0AEC0] mb-1">End date</label>
+                  <label className="block text-xs text-[var(--text-secondary)] mb-1">End date</label>
                   <input
                     name="campaign_end"
                     type="date"
-                    className="w-full px-3 py-2 bg-[#0B0F14] border border-[#252B35] rounded-lg text-white text-sm focus:outline-none focus:border-[#00E5FF] transition"
+                    className="w-full px-3 py-2 bg-[var(--bg-base)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--accent)] transition"
                   />
                 </div>
               </div>
@@ -278,7 +290,7 @@ export function ClientReportsSection({
                 <button
                   type="button"
                   onClick={closeCreate}
-                  className="px-4 py-2 rounded-lg text-sm text-[#A0AEC0] border border-[#252B35] hover:border-[#353B45] hover:text-white transition"
+                  className="px-4 py-2 rounded-lg text-sm text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--hover-border)] hover:text-[var(--text-primary)] transition"
                 >
                   Cancel
                 </button>

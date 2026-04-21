@@ -36,7 +36,7 @@ function SectionCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-3xl border border-white/[0.07] bg-white/[0.03] backdrop-blur-sm flex flex-col min-h-0 ${className}`}
+      className={`relative overflow-hidden rounded-3xl border border-white/[0.07] bg-white/[0.03] backdrop-blur-sm flex flex-col min-h-0 print:break-inside-avoid ${className}`}
     >
       {/* top glow border */}
       <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r ${top}`} aria-hidden />
@@ -310,23 +310,35 @@ function ChannelMixDonut({ payload: p }: { payload: ReportPayload }) {
 /** Coloured horizontal bars per platform. */
 function ReachBars({ payload: p }: { payload: ReportPayload }) {
   const rows = [
-    { label: "X (Twitter)", value: p.x_reach || 0, color: "#00E5FF" },
-    { label: "Reddit", value: p.reddit_reach || 0, color: "#7B61FF" },
-    { label: "Discord", value: p.discord_reach || 0, color: "#00FF9D" },
-    { label: "Telegram", value: p.telegram_reach || 0, color: "#FF6B6B" },
-    { label: "Email", value: p.email_reach || 0, color: "#94A3B8" },
+    { label: "X (Twitter)", value: p.x_reach || 0, color: "#00E5FF", url: p.x_reach_url || p.x_post_url },
+    { label: "Reddit", value: p.reddit_reach || 0, color: "#7B61FF", url: p.reddit_reach_url },
+    { label: "Discord", value: p.discord_reach || 0, color: "#00FF9D", url: p.discord_reach_url },
+    { label: "Telegram", value: p.telegram_reach || 0, color: "#FF6B6B", url: p.telegram_reach_url },
+    { label: "Email", value: p.email_reach || 0, color: "#94A3B8", url: p.email_reach_url },
   ];
   const max = Math.max(...rows.map((r) => r.value), 1);
   return (
     <div className="space-y-4">
-      {rows.map(({ label, value, color }) => {
+      {rows.map(({ label, value, color, url }) => {
         const pct = (value / max) * 100;
         return (
           <div key={label}>
             <div className="flex justify-between items-baseline text-sm mb-1.5">
               <span className="flex items-center gap-2 text-[#C5D0E0]">
                 <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: color }} />
-                {label}
+                {url ? (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 hover:text-white hover:underline transition"
+                  >
+                    {label}
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </a>
+                ) : (
+                  label
+                )}
               </span>
               <span className="font-semibold tabular-nums" style={{ color }}>{fmt(value)}</span>
             </div>
@@ -756,6 +768,22 @@ function ReportDashboardV2({
           <p className="mt-3 font-mono text-sm" style={{ color: DIM }}>
             Prepared by {p.prepared_by || "EDM Media"} · EDM Signal
           </p>
+          {(p.algo_sentiment_bias || p.campaign_type) && (
+            <div className="mt-5 flex flex-wrap gap-3">
+              {p.algo_sentiment_bias && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded" style={{ background: "#10B98112", border: "1px solid #10B98130" }}>
+                  <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>Algo Bias</span>
+                  <span className="font-mono text-xs font-bold" style={{ color: GREEN }}>{p.algo_sentiment_bias}</span>
+                </div>
+              )}
+              {p.campaign_type && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded" style={{ background: `${AMBER}12`, border: `1px solid ${AMBER}30` }}>
+                  <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>Campaign Type</span>
+                  <span className="font-mono text-xs font-bold" style={{ color: AMBER }}>{p.campaign_type}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ── KPI strip ── */}
@@ -995,8 +1023,18 @@ function ReportDashboardV2({
               <div key={i} className="grid grid-cols-[32px_1fr_auto] gap-4 items-start px-6 py-4" style={{ borderBottom: i < Math.min(p.top_content!.length, 5) - 1 ? `1px solid ${MUTED}15` : "none" }}>
                 <span className="font-mono text-sm font-bold tabular-nums" style={{ color: MUTED }}>{String(i + 1).padStart(2, "0")}</span>
                 <div>
-                  <p className="text-sm font-semibold text-white">{item.platform}</p>
-                  <p className="font-mono text-xs mt-0.5" style={{ color: DIM }}>{item.why_it_worked}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-white">{item.platform}</p>
+                    {item.content_url && (
+                      <a href={item.content_url} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest hover:underline transition-opacity opacity-70 hover:opacity-100"
+                        style={{ color: GREEN }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        View
+                      </a>
+                    )}
+                  </div>
+                  <p className="font-mono text-xs mt-0.5 whitespace-pre-wrap break-words" style={{ color: DIM }}>{item.why_it_worked}</p>
                 </div>
                 <span className="font-mono text-sm font-bold tabular-nums" style={{ color: GREEN }}>{fmt(item.engagement_count)}</span>
               </div>
@@ -1082,6 +1120,106 @@ function ReportDashboardV2({
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Signal Analysis ── */}
+        {(p.pr_score_bullets?.length ?? 0) > 0 && (
+          <div style={{ borderBottom: LINE }}>
+            <div className="px-6 py-4" style={{ borderBottom: `1px solid ${MUTED}20`, borderTop: `2px solid ${AMBER}` }}>
+              <div className="flex items-center gap-2"><V2SvgIcon name="activity" color={AMBER} size={13} /><p className="font-mono text-[11px] uppercase tracking-[0.2em]" style={{ color: AMBER }}>// WHY THIS PR SCORES WELL</p></div>
+            </div>
+            <div className="px-6 py-6">
+              <div className="space-y-3">
+                {p.pr_score_bullets!.map((bullet, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <span className="font-mono text-xs shrink-0 mt-0.5" style={{ color: AMBER }}>▸</span>
+                    <span className="text-sm leading-relaxed" style={{ color: TEXT }}>{bullet}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Social Posts ── */}
+        {(p.x_post_url || p.instagram_url || p.tiktok_url || p.stocktwits_post || p.linkedin_post || p.reddit_post) && (
+          <div style={{ borderBottom: LINE }}>
+            <div className="px-6 py-4" style={{ borderBottom: `1px solid ${MUTED}20`, borderTop: `2px solid #7B61FF` }}>
+              <div className="flex items-center gap-2">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7B61FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                <p className="font-mono text-[11px] uppercase tracking-[0.2em]" style={{ color: "#7B61FF" }}>// SOCIAL POSTS</p>
+              </div>
+            </div>
+            <div className="px-6 py-6 space-y-5">
+              {/* Link buttons */}
+              {(p.x_post_url || p.instagram_url || p.tiktok_url) && (
+                <div className="flex flex-wrap gap-2">
+                  {p.x_post_url && (
+                    <a href={p.x_post_url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+                      style={{ background: "#16181C", border: `1px solid ${MUTED}40`, color: TEXT }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                      View X Post
+                    </a>
+                  )}
+                  {p.instagram_url && (
+                    <a href={p.instagram_url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition"
+                      style={{ background: "linear-gradient(135deg,#833AB4,#FD1D1D,#F77737)", border: "1px solid transparent" }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                      View Instagram
+                    </a>
+                  )}
+                  {p.tiktok_url && (
+                    <a href={p.tiktok_url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+                      style={{ background: "#010101", border: `1px solid ${MUTED}40`, color: TEXT }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.19 8.19 0 0 0 4.79 1.52V6.74a4.85 4.85 0 0 1-1.02-.05z"/></svg>
+                      View TikTok
+                    </a>
+                  )}
+                </div>
+              )}
+              {/* Text posts */}
+              {p.stocktwits_post && (
+                <div className="rounded-lg p-4" style={{ background: PANEL, border: `1px solid ${MUTED}30` }}>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] mb-2" style={{ color: "#F59E0B" }}>StockTwits</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: TEXT }}>{p.stocktwits_post}</p>
+                </div>
+              )}
+              {p.linkedin_post && (
+                <div className="rounded-lg p-4" style={{ background: PANEL, border: `1px solid ${MUTED}30` }}>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] mb-2" style={{ color: "#0A66C2" }}>LinkedIn</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: TEXT }}>{p.linkedin_post}</p>
+                </div>
+              )}
+              {p.reddit_post && (
+                <div className="rounded-lg p-4" style={{ background: PANEL, border: `1px solid ${MUTED}30` }}>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] mb-2" style={{ color: "#FF4500" }}>Reddit</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: TEXT }}>{p.reddit_post}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Next PR Guidance ── */}
+        {(p.next_pr_bullets?.length ?? 0) > 0 && (
+          <div style={{ borderBottom: LINE }}>
+            <div className="px-6 py-4" style={{ borderBottom: `1px solid ${MUTED}20`, borderTop: `2px solid ${GREEN}` }}>
+              <div className="flex items-center gap-2"><V2SvgIcon name="lightbulb" color={GREEN} size={13} /><p className="font-mono text-[11px] uppercase tracking-[0.2em]" style={{ color: GREEN }}>// WHAT THE NEXT PR SHOULD SAY</p></div>
+            </div>
+            <div className="px-6 py-6">
+              <div className="space-y-3">
+                {p.next_pr_bullets!.map((bullet, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <span className="font-mono text-xs shrink-0 mt-0.5" style={{ color: GREEN }}>▸</span>
+                    <span className="text-sm leading-relaxed" style={{ color: TEXT }}>{bullet}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -1237,9 +1375,11 @@ function ReportDashboardV3({
               {campaignStart && campaignEnd ? ` · ${campaignStart} – ${campaignEnd}` : ""}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isDraft && <V3Pill color="red">Draft</V3Pill>}
             <V3Pill color="gray">{campaignStart || "—"} → {campaignEnd || "—"}</V3Pill>
+            {p.algo_sentiment_bias && <V3Pill color="green">{p.algo_sentiment_bias}</V3Pill>}
+            {p.campaign_type && <V3Pill color="blue">{p.campaign_type}</V3Pill>}
           </div>
         </header>
 
@@ -1349,8 +1489,17 @@ function ReportDashboardV3({
                 >
                   <span className="w-6 text-center text-[11px] font-bold text-[#94A3B8] tabular-nums">{i + 1}</span>
                   <div className="pl-4">
-                    <p className="text-sm text-[#0F172A] font-medium line-clamp-1">{item.platform}</p>
-                    {item.why_it_worked && <p className="text-[11px] text-[#94A3B8] line-clamp-1">{item.why_it_worked}</p>}
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-[#0F172A] font-medium line-clamp-1">{item.platform}</p>
+                      {item.content_url && (
+                        <a href={item.content_url} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#2563EB] hover:underline transition-opacity">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                          View
+                        </a>
+                      )}
+                    </div>
+                    {item.why_it_worked && <p className="text-[11px] text-[#94A3B8] whitespace-pre-wrap break-words">{item.why_it_worked}</p>}
                   </div>
                   <V3Pill color="blue">{item.engagement_count > 0 ? item.engagement_count.toLocaleString() : "Top"}</V3Pill>
                 </div>
@@ -1470,6 +1619,91 @@ function ReportDashboardV3({
           </section>
         )}
 
+        {/* ══════════ 08 SOCIAL POSTS ══════════ */}
+        {(p.x_post_url || p.instagram_url || p.tiktok_url || p.stocktwits_post || p.linkedin_post || p.reddit_post) && (
+          <section>
+            <V3SectionHeader label="08" title="Social Posts" />
+            <div className="space-y-4">
+              {/* Link buttons */}
+              {(p.x_post_url || p.instagram_url || p.tiktok_url) && (
+                <div className="flex flex-wrap gap-2">
+                  {p.x_post_url && (
+                    <a href={p.x_post_url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#16181C] text-white text-xs font-semibold hover:opacity-90 transition border border-black/10">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                      View X Post
+                    </a>
+                  )}
+                  {p.instagram_url && (
+                    <a href={p.instagram_url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-white text-xs font-semibold hover:opacity-90 transition"
+                      style={{ background: "linear-gradient(135deg,#833AB4,#FD1D1D,#F77737)" }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                      View Instagram
+                    </a>
+                  )}
+                  {p.tiktok_url && (
+                    <a href={p.tiktok_url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#010101] text-white text-xs font-semibold hover:opacity-90 transition border border-black/10">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.19 8.19 0 0 0 4.79 1.52V6.74a4.85 4.85 0 0 1-1.02-.05z"/></svg>
+                      View TikTok
+                    </a>
+                  )}
+                </div>
+              )}
+              {/* Text posts */}
+              {p.stocktwits_post && (
+                <div className="rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] px-5 py-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#D97706] mb-2">StockTwits</p>
+                  <p className="text-sm text-[#44403C] leading-relaxed whitespace-pre-wrap">{p.stocktwits_post}</p>
+                </div>
+              )}
+              {p.linkedin_post && (
+                <div className="rounded-2xl bg-[#EFF6FF] border border-[#BFDBFE] px-5 py-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#1D4ED8] mb-2">LinkedIn</p>
+                  <p className="text-sm text-[#1E3A5F] leading-relaxed whitespace-pre-wrap">{p.linkedin_post}</p>
+                </div>
+              )}
+              {p.reddit_post && (
+                <div className="rounded-2xl bg-[#FFF7F5] border border-[#FDCDB9] px-5 py-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#CC4500] mb-2">Reddit</p>
+                  <p className="text-sm text-[#44403C] leading-relaxed whitespace-pre-wrap">{p.reddit_post}</p>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ══════════ 09 SIGNAL ANALYSIS ══════════ */}
+        {(p.pr_score_bullets?.length ?? 0) > 0 && (
+          <section>
+            <V3SectionHeader label="09" title="Why This PR Scores Well" />
+            <div className="rounded-2xl bg-[#FEFCE8] border border-[#FDE68A] px-6 py-5 space-y-3">
+              {p.pr_score_bullets!.map((bullet, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <span className="mt-1 w-4 h-4 rounded-full bg-[#FDE68A] flex items-center justify-center text-[#92400E] text-[9px] font-black shrink-0">✓</span>
+                  <span className="text-sm text-[#44403C] leading-relaxed">{bullet}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ══════════ 11 NEXT PR GUIDANCE ══════════ */}
+        {(p.next_pr_bullets?.length ?? 0) > 0 && (
+          <section>
+            <V3SectionHeader label="11" title="What the Next PR Should Say" />
+            <div className="rounded-2xl bg-[#F0FDF4] border border-[#BBF7D0] px-6 py-5 space-y-3">
+              {p.next_pr_bullets!.map((bullet, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <span className="mt-px w-5 h-5 rounded-full bg-[#DCFCE7] flex items-center justify-center text-[11px] font-bold text-[#16A34A] shrink-0">{i + 1}</span>
+                  <span className="text-sm text-[#166534] leading-relaxed">{bullet}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Footer */}
         <p className="text-[11px] text-[#CBD5E1] text-center pb-4 tracking-wider">
           {companyName}{ticker ? ` (${ticker})` : ""} · EDM Signal Report · {p.prepared_by || "EDM Media"}
@@ -1572,9 +1806,9 @@ export function ReportViewer({
   return (
     <div className="relative min-h-screen bg-[#060A0F] text-white font-[family-name:var(--font-inter)] selection:bg-[#00E5FF]/20">
 
-      {/* ── Ambient background ── */}
+      {/* ── Ambient background (fixed → repeats per PDF sheet; .report-print-bg uses absolute in @media print) ── */}
       <div
-        className="pointer-events-none fixed inset-0"
+        className="report-print-bg pointer-events-none fixed inset-0"
         aria-hidden
         style={{
           background:
@@ -1586,7 +1820,7 @@ export function ReportViewer({
 
       {/* ── Noise texture overlay ── */}
       <div
-        className="pointer-events-none fixed inset-0 opacity-[0.025]"
+        className="report-print-bg pointer-events-none fixed inset-0 opacity-[0.025]"
         aria-hidden
         style={{
           backgroundImage:
@@ -1681,7 +1915,13 @@ export function ReportViewer({
             )}
             <button
               type="button"
-              onClick={() => window.print()}
+              onClick={() => {
+                if (publicSlug) {
+                  window.open(`/api/reports/${encodeURIComponent(publicSlug)}/pdf`, "_blank");
+                  return;
+                }
+                window.print();
+              }}
               className="rounded-xl border border-white/[0.08] px-2.5 py-1.5 font-medium text-[#8B9AAF] hover:text-white hover:border-white/20 transition-colors"
             >
               Print
@@ -1752,6 +1992,20 @@ export function ReportViewer({
                       </p>
                     )}
                     <p className="text-xs text-[#3A4452]">Prepared by {p.prepared_by || "EDM Media"}</p>
+                    {(p.algo_sentiment_bias || p.campaign_type) && (
+                      <div className="flex flex-wrap gap-1.5 mt-1 justify-end">
+                        {p.algo_sentiment_bias && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#00FF9D]/10 border border-[#00FF9D]/25 text-[#00FF9D]">
+                            {p.algo_sentiment_bias}
+                          </span>
+                        )}
+                        {p.campaign_type && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#F59E0B]/10 border border-[#F59E0B]/25 text-[#F59E0B]">
+                            {p.campaign_type}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </header>
@@ -1869,6 +2123,20 @@ export function ReportViewer({
                 </div>
               </SectionCard>
 
+              {/* Signal Analysis */}
+              {(p.pr_score_bullets?.length ?? 0) > 0 && (
+                <SectionCard title="Why this PR scores well" accent="cyan">
+                  <ul className="space-y-3">
+                    {p.pr_score_bullets!.map((bullet, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#F59E0B]/15 border border-[#F59E0B]/25 text-[#F59E0B] text-xs font-bold">✓</span>
+                        <span className="text-sm text-[#C5D0E0] leading-relaxed">{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </SectionCard>
+              )}
+
             </div>
           </Slide>
         </div>
@@ -1890,7 +2158,7 @@ export function ReportViewer({
               </div>
 
               {(p.top_content?.length ?? 0) > 0 && (
-                <SectionCard title="Top performing content" accent="cyan">
+                <SectionCard title="Campaign Social Messaging" accent="cyan">
                   <div className="grid gap-4">
                     {p.top_content!.map((item, i) => (
                       <div
@@ -1906,8 +2174,15 @@ export function ReportViewer({
                             <span className="rounded-full bg-[#00E5FF]/10 border border-[#00E5FF]/20 text-[#00E5FF] text-xs px-2.5 py-0.5 tabular-nums font-medium">
                               {fmt(item.engagement_count)} engagements
                             </span>
+                            {item.content_url && (
+                              <a href={item.content_url} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 rounded-full bg-white/5 border border-white/10 text-[#C5D0E0] text-xs px-2.5 py-0.5 hover:bg-white/10 hover:text-white transition">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                View post
+                              </a>
+                            )}
                           </div>
-                          <p className="text-sm text-[#8B9AAF] leading-relaxed">{item.why_it_worked}</p>
+                          <p className="text-sm text-[#8B9AAF] leading-relaxed whitespace-pre-wrap break-words">{item.why_it_worked}</p>
                           {item.screenshot_data_url && (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -1990,6 +2265,74 @@ export function ReportViewer({
                   )}
                 </SectionCard>
               </div>
+
+              {/* Social Posts */}
+              {(p.x_post_url || p.instagram_url || p.tiktok_url || p.stocktwits_post || p.linkedin_post || p.reddit_post) && (
+                <SectionCard title="Social posts" accent="purple">
+                  <div className="space-y-4">
+                    {/* Link buttons */}
+                    {(p.x_post_url || p.instagram_url || p.tiktok_url) && (
+                      <div className="flex flex-wrap gap-2">
+                        {p.x_post_url && (
+                          <a href={p.x_post_url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black border border-white/15 text-xs font-semibold text-white hover:bg-white/10 transition">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                            View X Post
+                          </a>
+                        )}
+                        {p.instagram_url && (
+                          <a href={p.instagram_url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/15 text-xs font-semibold text-white hover:bg-white/10 transition"
+                            style={{ background: "linear-gradient(135deg,#833AB4,#FD1D1D,#F77737)" }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                            View Instagram
+                          </a>
+                        )}
+                        {p.tiktok_url && (
+                          <a href={p.tiktok_url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black border border-white/15 text-xs font-semibold text-white hover:bg-white/10 transition">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.19 8.19 0 0 0 4.79 1.52V6.74a4.85 4.85 0 0 1-1.02-.05z"/></svg>
+                            View TikTok
+                          </a>
+                        )}
+                      </div>
+                    )}
+                    {/* Text posts */}
+                    {p.stocktwits_post && (
+                      <div className="rounded-xl bg-white/5 border border-white/10 p-3.5">
+                        <p className="text-[10px] font-bold text-[#8B9AAF] uppercase tracking-widest mb-2">StockTwits</p>
+                        <p className="text-xs text-[#C5D0E0] leading-relaxed whitespace-pre-wrap">{p.stocktwits_post}</p>
+                      </div>
+                    )}
+                    {p.linkedin_post && (
+                      <div className="rounded-xl bg-white/5 border border-white/10 p-3.5">
+                        <p className="text-[10px] font-bold text-[#0A66C2] uppercase tracking-widest mb-2">LinkedIn</p>
+                        <p className="text-xs text-[#C5D0E0] leading-relaxed whitespace-pre-wrap">{p.linkedin_post}</p>
+                      </div>
+                    )}
+                    {p.reddit_post && (
+                      <div className="rounded-xl bg-white/5 border border-white/10 p-3.5">
+                        <p className="text-[10px] font-bold text-[#FF4500] uppercase tracking-widest mb-2">Reddit</p>
+                        <p className="text-xs text-[#C5D0E0] leading-relaxed whitespace-pre-wrap">{p.reddit_post}</p>
+                      </div>
+                    )}
+                  </div>
+                </SectionCard>
+              )}
+
+              {/* Next PR Guidance */}
+              {(p.next_pr_bullets?.length ?? 0) > 0 && (
+                <SectionCard title="What the next PR should say" accent="green">
+                  <ul className="space-y-3">
+                    {p.next_pr_bullets!.map((bullet, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#00FF9D]/15 border border-[#00FF9D]/25 text-[#00FF9D] text-xs font-bold">{i + 1}</span>
+                        <span className="text-sm text-[#C5D0E0] leading-relaxed">{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </SectionCard>
+              )}
 
               <p className="text-xs text-[#2A3442] text-center pt-2 tracking-wider">
                 {companyName}{ticker ? ` ($${ticker})` : ""} · EDM Signal Report · {p.prepared_by || "EDM Media"}

@@ -28,6 +28,15 @@ export async function initSchema() {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS report_view (
+      id TEXT PRIMARY KEY,
+      report_id TEXT NOT NULL REFERENCES report(id) ON DELETE CASCADE,
+      country TEXT,
+      country_code TEXT,
+      city TEXT,
+      viewed_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS asset (
       id TEXT PRIMARY KEY,
       report_id TEXT NOT NULL REFERENCES report(id) ON DELETE CASCADE,
@@ -89,6 +98,12 @@ export interface ReportPayload {
   signal_score_before?: number;
   signal_score_after?: number;
   assets_deployed?: number;
+  algo_sentiment_bias?: string;
+  campaign_type?: string;
+  // Signal Analysis
+  pr_score_bullets?: string[];
+  // Next PR Guidance
+  next_pr_bullets?: string[];
   // Signal Breakdown (each 0-100)
   execution_before?: number;
   execution_after?: number;
@@ -111,6 +126,11 @@ export interface ReportPayload {
   discord_reach?: number;
   telegram_reach?: number;
   email_reach?: number;
+  x_reach_url?: string;
+  reddit_reach_url?: string;
+  discord_reach_url?: string;
+  telegram_reach_url?: string;
+  email_reach_url?: string;
   // Engagement
   likes?: number;
   comments?: number;
@@ -121,6 +141,7 @@ export interface ReportPayload {
     platform: string;
     engagement_count: number;
     why_it_worked: string;
+    content_url?: string;
     screenshot_id?: string;
     screenshot_data_url?: string;
   }[];
@@ -140,6 +161,13 @@ export interface ReportPayload {
   // Next Steps
   recommended_cta_text?: string;
   next_steps_bullets?: string[];
+  // Social Posts
+  x_post_url?: string;
+  instagram_url?: string;
+  tiktok_url?: string;
+  stocktwits_post?: string;
+  linkedin_post?: string;
+  reddit_post?: string;
 }
 
 // --- Client CRUD ---
@@ -293,6 +321,71 @@ export async function duplicateReport(id: string): Promise<Report> {
 
 export async function deleteReport(id: string): Promise<void> {
   await turso.execute({ sql: `DELETE FROM report WHERE id = ?`, args: [id] });
+}
+
+// --- Report View Analytics ---
+
+export async function logReportView(
+  reportId: string,
+  country?: string | null,
+  countryCode?: string | null,
+  city?: string | null
+): Promise<void> {
+  const id = genId();
+  await turso.execute({
+    sql: `INSERT INTO report_view (id, report_id, country, country_code, city) VALUES (?, ?, ?, ?, ?)`,
+    args: [id, reportId, country ?? null, countryCode ?? null, city ?? null],
+  });
+}
+
+export interface ReportViewStats {
+  total: number;
+  byCountry: { country: string | null; country_code: string | null; views: number }[];
+  recentViews: { viewed_at: string; country: string | null; city: string | null }[];
+}
+
+export async function getReportViewStats(reportId: string): Promise<ReportViewStats> {
+  const [totalResult, byCountryResult, recentResult] = await Promise.all([
+    turso.execute({
+      sql: `SELECT COUNT(*) as total FROM report_view WHERE report_id = ?`,
+      args: [reportId],
+    }),
+    turso.execute({
+      sql: `SELECT country, country_code, COUNT(*) as views
+            FROM report_view WHERE report_id = ?
+            GROUP BY country, country_code ORDER BY views DESC LIMIT 20`,
+      args: [reportId],
+    }),
+    turso.execute({
+      sql: `SELECT viewed_at, country, city FROM report_view
+            WHERE report_id = ? ORDER BY viewed_at DESC LIMIT 10`,
+      args: [reportId],
+    }),
+  ]);
+
+  return {
+    total: Number(totalResult.rows[0][0]),
+    byCountry: byCountryResult.rows.map((r) =>
+      toObj<{ country: string | null; country_code: string | null; views: number }>(
+        r,
+        byCountryResult.columns
+      )
+    ),
+    recentViews: recentResult.rows.map((r) =>
+      toObj<{ viewed_at: string; country: string | null; city: string | null }>(
+        r,
+        recentResult.columns
+      )
+    ),
+  };
+}
+
+export async function getReportViewCount(reportId: string): Promise<number> {
+  const result = await turso.execute({
+    sql: `SELECT COUNT(*) as total FROM report_view WHERE report_id = ?`,
+    args: [reportId],
+  });
+  return Number(result.rows[0][0]);
 }
 
 export default turso;

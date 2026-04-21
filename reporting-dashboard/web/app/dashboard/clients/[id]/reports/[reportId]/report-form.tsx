@@ -79,6 +79,18 @@ function SectionSvgIcon({ id, className = "" }: { id: string; className?: string
         <polyline points="12 5 19 12 12 19"/>
       </svg>
     ),
+    "signal-analysis": (
+      <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+    ),
+    "next-pr-guidance": (
+      <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+      </svg>
+    ),
   };
   return <>{icons[id] ?? null}</>;
 }
@@ -95,6 +107,8 @@ const SECTIONS = [
   { id: "influencer",         label: "Influencer" },
   { id: "market-impact",      label: "Market Impact" },
   { id: "next-steps",         label: "Next Steps" },
+  { id: "signal-analysis",    label: "Signal Analysis" },
+  { id: "next-pr-guidance",   label: "Next PR Guidance" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -116,19 +130,21 @@ function Section({
       id={id}
       className={`rounded-2xl border mb-6 overflow-hidden ${
         accent
-          ? "border-[#00E5FF]/30 bg-gradient-to-br from-[#0D1520] to-[#0B1A1F]"
-          : "border-[#1E2633] bg-[#111720]"
+          ? "border-[var(--accent-border)] bg-[var(--bg-card)]"
+          : "border-[var(--border-strong)] bg-[var(--bg-card)]"
       }`}
     >
       <div
         className={`px-6 py-4 border-b flex items-center gap-3 ${
-          accent ? "border-[#00E5FF]/20 bg-[#00E5FF]/5" : "border-[#1E2633] bg-[#0F1620]"
+          accent
+            ? "border-[var(--accent-border-sm)] bg-[var(--accent-bg-sub)]"
+            : "border-[var(--border-strong)] bg-[var(--section-header)]"
         }`}
       >
-        <span className={accent ? "text-[#00E5FF]" : "text-[#8B9BB4]"}>
+        <span className={accent ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}>
           <SectionSvgIcon id={id} />
         </span>
-        <h3 className="text-sm font-bold text-white tracking-wide uppercase">
+        <h3 className="text-sm font-bold text-[var(--text-primary)] tracking-wide uppercase">
           {title}
         </h3>
       </div>
@@ -148,11 +164,11 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-xs font-semibold text-[#8B9BB4] uppercase tracking-wider">
+      <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
         {label}
       </label>
       {children}
-      {hint && <p className="text-[10px] text-[#4A5568] mt-1">{hint}</p>}
+      {hint && <p className="text-[10px] text-[var(--text-faint)] mt-1">{hint}</p>}
     </div>
   );
 }
@@ -174,7 +190,7 @@ function Input({
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full px-4 py-2.5 bg-[#0B0F14] border border-[#1E2633] rounded-xl text-white text-sm placeholder-[#3A4558] focus:outline-none focus:border-[#00E5FF] focus:ring-1 focus:ring-[#00E5FF]/20 transition-all"
+      className="w-full px-4 py-2.5 bg-[var(--bg-base)] border border-[var(--border-strong)] rounded-xl text-[var(--text-primary)] text-sm placeholder-[var(--placeholder)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent-bg)] transition-all"
     />
   );
 }
@@ -194,7 +210,7 @@ function NumberInput({
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined)}
       placeholder={placeholder}
-      className="w-full px-4 py-2.5 bg-[#0B0F14] border border-[#1E2633] rounded-xl text-white text-sm placeholder-[#3A4558] focus:outline-none focus:border-[#00E5FF] focus:ring-1 focus:ring-[#00E5FF]/20 transition-all"
+      className="w-full px-4 py-2.5 bg-[var(--bg-base)] border border-[var(--border-strong)] rounded-xl text-[var(--text-primary)] text-sm placeholder-[var(--placeholder)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent-bg)] transition-all"
     />
   );
 }
@@ -207,8 +223,8 @@ function StatCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-[#0B0F14] border border-[#1E2633] rounded-xl p-4 space-y-2">
-      <p className="text-[10px] font-bold text-[#8B9BB4] uppercase tracking-widest">{label}</p>
+    <div className="bg-[var(--bg-base)] border border-[var(--border-strong)] rounded-xl p-4 space-y-2">
+      <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">{label}</p>
       {children}
     </div>
   );
@@ -228,8 +244,8 @@ function BeforeAfterRow({
   onAfterChange: (v: number | undefined) => void;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-3 items-center p-3 rounded-xl bg-[#0B0F14] border border-[#1E2633]">
-      <span className="text-sm font-medium text-[#A0AEC0]">{label}</span>
+    <div className="grid grid-cols-3 gap-3 items-center p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)]">
+      <span className="text-sm font-medium text-[var(--text-secondary)]">{label}</span>
       <div className="relative">
         <NumberInput value={before} onChange={onBeforeChange} placeholder="Before" />
       </div>
@@ -291,6 +307,7 @@ export function ReportForm({
         platform?: string;
         engagement_count?: number;
         why_it_worked?: string;
+        content_url?: string;
         screenshot_data_url?: string;
       }
     ) => {
@@ -346,7 +363,6 @@ export function ReportForm({
     };
   }, [p, meta, persistDraft]);
 
-  // Track active section via scroll
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -366,18 +382,18 @@ export function ReportForm({
   }, []);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-[var(--bg-base)]">
       {/* Sidebar */}
-      <aside className="hidden lg:flex flex-col w-56 border-r border-[#1E2633] bg-[#0D1117] sticky top-0 h-screen">
-        <div className="p-4 border-b border-[#1E2633]">
-          <p className="text-[10px] font-bold text-[#8B9BB4] uppercase tracking-widest mb-1">
+      <aside className="hidden lg:flex flex-col w-56 border-r border-[var(--border-strong)] bg-[var(--bg-overlay)] sticky top-0 h-screen">
+        <div className="p-4 border-b border-[var(--border-strong)]">
+          <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest mb-1">
             Sections
           </p>
-          <p className="text-xs text-[#4A5568]">
+          <p className="text-xs text-[var(--text-faint)]">
             {saving ? (
-              <span className="text-[#00E5FF]">Saving…</span>
+              <span className="text-[var(--accent)]">Saving…</span>
             ) : lastSaved ? (
-              <span className="text-[#00FF9D]">✓ Saved {lastSaved}</span>
+              <span className="text-[var(--success)]">✓ Saved {lastSaved}</span>
             ) : (
               "Auto-saves on edit"
             )}
@@ -392,11 +408,11 @@ export function ReportForm({
                   onClick={() => setActiveSection(s.id)}
                   className={`group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all ${
                     activeSection === s.id
-                      ? "bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/20"
-                      : "text-[#8B9BB4] hover:text-white hover:bg-[#1A2233]"
+                      ? "bg-[var(--accent-bg)] text-[var(--accent)] border border-[var(--accent-border-sm)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]"
                   }`}
                 >
-                  <span className={activeSection === s.id ? "text-[#00E5FF]" : "text-[#4A5568] group-hover:text-[#8B9BB4]"}>
+                  <span className={activeSection === s.id ? "text-[var(--accent)]" : "text-[var(--text-faint)] group-hover:text-[var(--text-muted)]"}>
                     <SectionSvgIcon id={s.id} />
                   </span>
                   <span className="text-xs font-medium">{s.label}</span>
@@ -405,10 +421,10 @@ export function ReportForm({
             ))}
           </ul>
         </nav>
-        <div className="p-3 border-t border-[#1E2633]">
+        <div className="p-3 border-t border-[var(--border-strong)]">
           <a
             href={`/dashboard/clients/${clientId}`}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[#8B9BB4] hover:text-white hover:bg-[#1A2233] transition-all"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-all"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -454,14 +470,14 @@ export function ReportForm({
                 />
               </Field>
             </div>
-            <div className="mt-4 flex items-center gap-3 p-3 rounded-xl bg-[#00E5FF]/5 border border-[#00E5FF]/15">
-              <div className="w-8 h-8 rounded-lg bg-[#00E5FF]/10 flex items-center justify-center text-[#00E5FF] text-sm font-bold">
+            <div className="mt-4 flex items-center gap-3 p-3 rounded-xl bg-[var(--accent-bg-sub)] border border-[var(--accent-border-sm)]">
+              <div className="w-8 h-8 rounded-lg bg-[var(--accent-bg)] flex items-center justify-center text-[var(--accent)] text-sm font-bold">
                 {companyName.charAt(0)}
               </div>
               <div>
-                <p className="text-sm font-semibold text-white">{companyName}</p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">{companyName}</p>
                 {ticker && (
-                  <p className="text-xs text-[#00E5FF]">${ticker}</p>
+                  <p className="text-xs text-[var(--accent)]">${ticker}</p>
                 )}
               </div>
             </div>
@@ -469,6 +485,22 @@ export function ReportForm({
 
           {/* Executive Summary */}
           <Section id="executive-summary" title="Executive Summary">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <Field label="Algo Sentiment Bias">
+                <Input
+                  value={p.algo_sentiment_bias || ""}
+                  onChange={(v) => update({ algo_sentiment_bias: v })}
+                  placeholder="Strong Positive"
+                />
+              </Field>
+              <Field label="Campaign Type">
+                <Input
+                  value={p.campaign_type || ""}
+                  onChange={(v) => update({ campaign_type: v })}
+                  placeholder="Revenue-validation + government pipeline"
+                />
+              </Field>
+            </div>
             <div className="grid grid-cols-3 gap-4">
               <StatCard label="Total Reach">
                 <NumberInput
@@ -497,16 +529,16 @@ export function ReportForm({
           {/* Signal Score */}
           <Section id="signal-score" title="Signal Score" accent>
             <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="p-4 rounded-xl bg-[#0B0F14] border border-[#1E2633] text-center space-y-2">
-                <p className="text-[10px] font-bold text-[#8B9BB4] uppercase tracking-widest">Score Before</p>
+              <div className="p-4 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] text-center space-y-2">
+                <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Score Before</p>
                 <NumberInput
                   value={p.signal_score_before}
                   onChange={(v) => update({ signal_score_before: v })}
                   placeholder="32"
                 />
               </div>
-              <div className="p-4 rounded-xl bg-[#00E5FF]/5 border border-[#00E5FF]/25 text-center space-y-2">
-                <p className="text-[10px] font-bold text-[#00E5FF] uppercase tracking-widest">Score After</p>
+              <div className="p-4 rounded-xl bg-[var(--accent-bg-sub)] border border-[var(--accent-border)] text-center space-y-2">
+                <p className="text-[10px] font-bold text-[var(--accent)] uppercase tracking-widest">Score After</p>
                 <NumberInput
                   value={p.signal_score_after}
                   onChange={(v) => update({ signal_score_after: v })}
@@ -516,9 +548,9 @@ export function ReportForm({
             </div>
             <div className="space-y-2">
               <div className="grid grid-cols-3 gap-3 px-3 py-2">
-                <span className="text-[10px] font-bold text-[#4A5568] uppercase tracking-wider">Axis</span>
-                <span className="text-[10px] font-bold text-[#4A5568] uppercase tracking-wider">Before</span>
-                <span className="text-[10px] font-bold text-[#4A5568] uppercase tracking-wider">After</span>
+                <span className="text-[10px] font-bold text-[var(--text-faint)] uppercase tracking-wider">Axis</span>
+                <span className="text-[10px] font-bold text-[var(--text-faint)] uppercase tracking-wider">Before</span>
+                <span className="text-[10px] font-bold text-[var(--text-faint)] uppercase tracking-wider">After</span>
               </div>
               <BeforeAfterRow
                 label="Execution"
@@ -577,18 +609,25 @@ export function ReportForm({
           <Section id="distribution" title="Distribution">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {[
-                { label: "X Reach", key: "x_reach" as const },
-                { label: "Reddit Reach", key: "reddit_reach" as const },
-                { label: "Discord Reach", key: "discord_reach" as const },
-                { label: "Telegram Reach", key: "telegram_reach" as const },
-                { label: "Email Reach", key: "email_reach" as const },
-              ].map(({ label, key }) => (
+                { label: "X Reach", key: "x_reach" as const, urlKey: "x_reach_url" as const, placeholder: "https://x.com/..." },
+                { label: "Reddit Reach", key: "reddit_reach" as const, urlKey: "reddit_reach_url" as const, placeholder: "https://reddit.com/..." },
+                { label: "Discord Reach", key: "discord_reach" as const, urlKey: "discord_reach_url" as const, placeholder: "https://discord.com/channels/..." },
+                { label: "Telegram Reach", key: "telegram_reach" as const, urlKey: "telegram_reach_url" as const, placeholder: "https://t.me/..." },
+                { label: "Email Reach", key: "email_reach" as const, urlKey: "email_reach_url" as const, placeholder: "https://mailchi.mp/..." },
+              ].map(({ label, key, urlKey, placeholder }) => (
                 <StatCard key={key} label={label}>
-                  <NumberInput
-                    value={p[key] as number | undefined}
-                    onChange={(v) => update({ [key]: v })}
-                    placeholder="0"
-                  />
+                  <div className="space-y-2">
+                    <NumberInput
+                      value={p[key] as number | undefined}
+                      onChange={(v) => update({ [key]: v })}
+                      placeholder="0"
+                    />
+                    <Input
+                      value={(p[urlKey] as string | undefined) || ""}
+                      onChange={(v) => update({ [urlKey]: v })}
+                      placeholder={placeholder}
+                    />
+                  </div>
                 </StatCard>
               ))}
             </div>
@@ -620,10 +659,10 @@ export function ReportForm({
               {(p.top_content || []).map((item, i) => (
                 <div
                   key={i}
-                  className="p-4 rounded-xl bg-[#0B0F14] border border-[#1E2633] space-y-3"
+                  className="p-4 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] space-y-3"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#8B9BB4] uppercase tracking-wider">
+                    <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
                       Item #{i + 1}
                     </span>
                     <button
@@ -631,12 +670,12 @@ export function ReportForm({
                       onClick={() => {
                         update({ top_content: (p.top_content || []).filter((_, j) => j !== i) });
                       }}
-                      className="text-xs text-[#4A5568] hover:text-[#FF4D4D] transition-colors px-2 py-1 rounded-lg hover:bg-[#FF4D4D]/10"
+                      className="text-xs text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors px-2 py-1 rounded-lg hover:bg-[var(--danger-bg)]"
                     >
                       Remove
                     </button>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Field label="Platform">
                       <Input
                         value={item.platform}
@@ -651,16 +690,25 @@ export function ReportForm({
                         placeholder="0"
                       />
                     </Field>
-                    <Field label="Why It Worked">
-                      <Input
-                        value={item.why_it_worked}
-                        onChange={(v) => updateTopContent(i, { why_it_worked: v })}
-                        placeholder="Strong hook + real numbers"
-                      />
-                    </Field>
                   </div>
+                  <Field label="Why It Worked">
+                    <textarea
+                      value={item.why_it_worked}
+                      onChange={(e) => updateTopContent(i, { why_it_worked: e.target.value })}
+                      placeholder="Strong hook + real numbers"
+                      rows={3}
+                      className="w-full px-4 py-2.5 bg-[var(--bg-base)] border border-[var(--border-strong)] rounded-xl text-[var(--text-primary)] text-sm placeholder-[var(--placeholder)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent-bg)] transition-all resize-none"
+                    />
+                  </Field>
+                  <Field label="Content Link (optional)" hint="Link to the post or article">
+                    <Input
+                      value={item.content_url || ""}
+                      onChange={(v) => updateTopContent(i, { content_url: v })}
+                      placeholder="https://x.com/..."
+                    />
+                  </Field>
                   <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#1A2233] border border-[#1E2633] text-xs text-[#8B9BB4] hover:text-white hover:border-[#00E5FF]/30 cursor-pointer transition-all">
+                    <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent-border-sm)] cursor-pointer transition-all">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                       </svg>
@@ -683,7 +731,7 @@ export function ReportForm({
                       />
                     </label>
                     {item.screenshot_data_url && (
-                      <span className="text-xs text-[#00FF9D]">✓ Image attached</span>
+                      <span className="text-xs text-[var(--success)]">✓ Image attached</span>
                     )}
                   </div>
                   {item.screenshot_data_url && (
@@ -691,7 +739,7 @@ export function ReportForm({
                     <img
                       src={item.screenshot_data_url}
                       alt={`${item.platform || "Top content"} screenshot`}
-                      className="w-full max-w-md rounded-xl border border-[#1E2633]"
+                      className="w-full max-w-md rounded-xl border border-[var(--border-strong)]"
                     />
                   )}
                 </div>
@@ -707,7 +755,7 @@ export function ReportForm({
                   ],
                 })
               }
-              className="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[#1E2633] text-xs text-[#8B9BB4] hover:text-[#00E5FF] hover:border-[#00E5FF]/40 transition-all w-full justify-center"
+              className="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent-border)] transition-all w-full justify-center"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 5v14M5 12h14" />
@@ -718,10 +766,10 @@ export function ReportForm({
 
           {/* PPC */}
           <Section id="ppc" title="PPC">
-            <label className="flex items-center gap-3 p-3 rounded-xl bg-[#0B0F14] border border-[#1E2633] cursor-pointer hover:border-[#00E5FF]/30 transition-all mb-4">
+            <label className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] cursor-pointer hover:border-[var(--accent-border-sm)] transition-all mb-4">
               <div
                 className={`w-10 h-6 rounded-full transition-colors relative ${
-                  p.ppc_enabled ? "bg-[#00E5FF]" : "bg-[#1E2633]"
+                  p.ppc_enabled ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"
                 }`}
               >
                 <div
@@ -736,7 +784,7 @@ export function ReportForm({
                   className="sr-only"
                 />
               </div>
-              <span className="text-sm text-[#A0AEC0]">Campaign used PPC</span>
+              <span className="text-sm text-[var(--text-secondary)]">Campaign used PPC</span>
             </label>
             {p.ppc_enabled && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -760,10 +808,10 @@ export function ReportForm({
 
           {/* Influencer */}
           <Section id="influencer" title="Influencer">
-            <label className="flex items-center gap-3 p-3 rounded-xl bg-[#0B0F14] border border-[#1E2633] cursor-pointer hover:border-[#00E5FF]/30 transition-all mb-4">
+            <label className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] cursor-pointer hover:border-[var(--accent-border-sm)] transition-all mb-4">
               <div
                 className={`w-10 h-6 rounded-full transition-colors relative ${
-                  p.influencer_enabled ? "bg-[#00E5FF]" : "bg-[#1E2633]"
+                  p.influencer_enabled ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"
                 }`}
               >
                 <div
@@ -778,7 +826,7 @@ export function ReportForm({
                   className="sr-only"
                 />
               </div>
-              <span className="text-sm text-[#A0AEC0]">Campaign used influencers</span>
+              <span className="text-sm text-[var(--text-secondary)]">Campaign used influencers</span>
             </label>
             {p.influencer_enabled && (
               <div className="grid grid-cols-3 gap-3">
@@ -801,14 +849,14 @@ export function ReportForm({
 
           {/* Market Impact */}
           <Section id="market-impact" title="Market Impact">
-            <p className="text-xs text-[#4A5568] mb-4 flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-md bg-[#FF4D4D]/10 text-[#FF4D4D] font-semibold">COMPLIANCE</span>
+            <p className="text-xs text-[var(--text-faint)] mb-4 flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-md bg-[var(--danger-bg)] text-[var(--danger)] font-semibold">COMPLIANCE</span>
               Qualitative bullets only — no stock-price claims
             </p>
             <div className="space-y-2">
               {(p.market_impact_bullets || []).map((bullet, i) => (
                 <div key={i} className="flex gap-2 items-center">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] shrink-0 mt-2.5" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] shrink-0 mt-2.5" />
                   <div className="flex-1">
                     <Input
                       value={bullet}
@@ -829,7 +877,7 @@ export function ReportForm({
                         ),
                       });
                     }}
-                    className="text-xs text-[#4A5568] hover:text-[#FF4D4D] transition-colors p-1.5 rounded-lg hover:bg-[#FF4D4D]/10 shrink-0"
+                    className="text-xs text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors p-1.5 rounded-lg hover:bg-[var(--danger-bg)] shrink-0"
                   >
                     ×
                   </button>
@@ -841,7 +889,7 @@ export function ReportForm({
               onClick={() =>
                 update({ market_impact_bullets: [...(p.market_impact_bullets || []), ""] })
               }
-              className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[#1E2633] text-xs text-[#8B9BB4] hover:text-[#00E5FF] hover:border-[#00E5FF]/40 transition-all w-full justify-center"
+              className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent-border)] transition-all w-full justify-center"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 5v14M5 12h14" />
@@ -860,12 +908,12 @@ export function ReportForm({
               />
             </Field>
             <div className="mt-4 space-y-2">
-              <p className="text-[10px] font-bold text-[#8B9BB4] uppercase tracking-widest">
+              <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">
                 Action Items
               </p>
               {(p.next_steps_bullets || []).map((bullet, i) => (
                 <div key={i} className="flex gap-2 items-center">
-                  <span className="text-[#00FF9D] text-xs font-bold shrink-0 w-5 text-center">
+                  <span className="text-[var(--success)] text-xs font-bold shrink-0 w-5 text-center">
                     {i + 1}.
                   </span>
                   <div className="flex-1">
@@ -888,7 +936,7 @@ export function ReportForm({
                         ),
                       });
                     }}
-                    className="text-xs text-[#4A5568] hover:text-[#FF4D4D] transition-colors p-1.5 rounded-lg hover:bg-[#FF4D4D]/10 shrink-0"
+                    className="text-xs text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors p-1.5 rounded-lg hover:bg-[var(--danger-bg)] shrink-0"
                   >
                     ×
                   </button>
@@ -899,7 +947,7 @@ export function ReportForm({
                 onClick={() =>
                   update({ next_steps_bullets: [...(p.next_steps_bullets || []), ""] })
                 }
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[#1E2633] text-xs text-[#8B9BB4] hover:text-[#00E5FF] hover:border-[#00E5FF]/40 transition-all w-full justify-center"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent-border)] transition-all w-full justify-center"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 5v14M5 12h14" />
@@ -909,20 +957,96 @@ export function ReportForm({
             </div>
           </Section>
 
+          {/* Signal Analysis */}
+          <Section id="signal-analysis" title="Signal Analysis" accent>
+            <p className="text-xs text-[var(--text-muted)] mb-3">
+              Explain why this PR scores well — bullet points shown on the report
+            </p>
+            <div className="space-y-2">
+              {(p.pr_score_bullets || []).map((bullet, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <span className="text-[var(--accent)] text-xs shrink-0">•</span>
+                  <div className="flex-1">
+                    <Input
+                      value={bullet}
+                      onChange={(v) => {
+                        const arr = [...(p.pr_score_bullets || [])];
+                        arr[i] = v;
+                        update({ pr_score_bullets: arr });
+                      }}
+                      placeholder="$400,000 in new IoT contracts"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => update({ pr_score_bullets: (p.pr_score_bullets || []).filter((_, j) => j !== i) })}
+                    className="text-xs text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors p-1.5 rounded-lg hover:bg-[var(--danger-bg)] shrink-0"
+                  >×</button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => update({ pr_score_bullets: [...(p.pr_score_bullets || []), ""] })}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent-border)] transition-all w-full justify-center"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
+                Add bullet
+              </button>
+            </div>
+          </Section>
+
+          {/* Next PR Guidance */}
+          <Section id="next-pr-guidance" title="Next PR Guidance">
+            <p className="text-xs text-[var(--text-muted)] mb-3">
+              What should the next press release ideally include to raise the signal score?
+            </p>
+            <div className="space-y-2">
+              {(p.next_pr_bullets || []).map((bullet, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <span className="text-[var(--success)] text-xs shrink-0">•</span>
+                  <div className="flex-1">
+                    <Input
+                      value={bullet}
+                      onChange={(v) => {
+                        const arr = [...(p.next_pr_bullets || [])];
+                        arr[i] = v;
+                        update({ next_pr_bullets: arr });
+                      }}
+                      placeholder="Additional contract wins with exact values"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => update({ next_pr_bullets: (p.next_pr_bullets || []).filter((_, j) => j !== i) })}
+                    className="text-xs text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors p-1.5 rounded-lg hover:bg-[var(--danger-bg)] shrink-0"
+                  >×</button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => update({ next_pr_bullets: [...(p.next_pr_bullets || []), ""] })}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent-border)] transition-all w-full justify-center"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
+                Add bullet
+              </button>
+            </div>
+          </Section>
+
           {/* Bottom padding */}
           <div className="h-24" />
         </div>
 
         {/* Sticky action bar */}
-        <div className="fixed bottom-0 left-56 right-0 z-30 bg-[#0D1117]/95 backdrop-blur border-t border-[#1E2633] px-6 py-3 flex items-center justify-between gap-4">
-          <div className="text-xs text-[#4A5568]">
+        <div className="fixed bottom-0 left-56 right-0 z-30 bg-[var(--bg-overlay)]/95 backdrop-blur border-t border-[var(--border-strong)] px-6 py-3 flex items-center justify-between gap-4">
+          <div className="text-xs text-[var(--text-faint)]">
             {saving ? (
-              <span className="text-[#00E5FF] flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] animate-pulse" />
+              <span className="text-[var(--accent)] flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
                 Saving…
               </span>
             ) : lastSaved ? (
-              <span className="text-[#00FF9D]">✓ Auto-saved {lastSaved}</span>
+              <span className="text-[var(--success)]">✓ Auto-saved {lastSaved}</span>
             ) : (
               "Auto-saves on edit"
             )}
@@ -931,14 +1055,14 @@ export function ReportForm({
             <button
               type="button"
               onClick={() => window.open(`/r/preview?reportId=${reportId}`, "_blank")}
-              className="px-4 py-2 text-xs font-medium border border-[#1E2633] text-[#8B9BB4] rounded-xl hover:text-white hover:border-[#2E3A4E] transition-all"
+              className="px-4 py-2 text-xs font-medium border border-[var(--border-strong)] text-[var(--text-muted)] rounded-xl hover:text-[var(--text-primary)] hover:border-[var(--hover-border)] transition-all"
             >
               Preview
             </button>
             {publishedSlug ? (
               <a
                 href={`/api/reports/${encodeURIComponent(publishedSlug)}/pdf`}
-                className="px-4 py-2 text-xs font-medium border border-[#1E2633] text-[#00E5FF] rounded-xl hover:border-[#00E5FF]/40 transition-all inline-block"
+                className="px-4 py-2 text-xs font-medium border border-[var(--border-strong)] text-[var(--accent)] rounded-xl hover:border-[var(--accent-border)] transition-all inline-block"
               >
                 Download PDF
               </a>
@@ -948,7 +1072,7 @@ export function ReportForm({
                 onClick={() =>
                   window.open(`/r/preview?reportId=${reportId}&print=1`, "_blank")
                 }
-                className="px-4 py-2 text-xs font-medium border border-[#1E2633] text-[#8B9BB4] rounded-xl hover:text-white hover:border-[#2E3A4E] transition-all"
+                className="px-4 py-2 text-xs font-medium border border-[var(--border-strong)] text-[var(--text-muted)] rounded-xl hover:text-[var(--text-primary)] hover:border-[var(--hover-border)] transition-all"
               >
                 Print to PDF
               </button>
@@ -968,7 +1092,7 @@ export function ReportForm({
                   setPublishing(false);
                 }
               }}
-              className="px-5 py-2 text-xs font-bold bg-[#00FF9D] text-[#0B0F14] rounded-xl hover:bg-[#00E08A] disabled:opacity-50 transition-all"
+              className="px-5 py-2 text-xs font-bold bg-[var(--success)] text-[var(--bg-base)] rounded-xl hover:opacity-90 disabled:opacity-50 transition-all"
             >
               {publishing ? "Publishing…" : "Publish & Copy Link"}
             </button>

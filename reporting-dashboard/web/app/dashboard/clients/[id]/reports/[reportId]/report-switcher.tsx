@@ -42,11 +42,11 @@ export function ReportSwitcher({
         onClick={() => setOpen((o) => !o)}
         className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-medium transition-all ${
           open
-            ? "bg-[#00E5FF]/10 border-[#00E5FF]/40 text-[#00E5FF]"
-            : "bg-[#111720] border-[#1E2633] text-white hover:border-[#2E3A4E]"
+            ? "bg-[var(--accent-bg)] border-[var(--accent-border)] text-[var(--accent)]"
+            : "bg-[var(--bg-card)] border-[var(--border-strong)] text-[var(--text-primary)] hover:border-[var(--hover-border)]"
         }`}
       >
-        <span className="w-2 h-2 rounded-full bg-[#00E5FF] shrink-0" />
+        <span className="w-2 h-2 rounded-full bg-[var(--accent)] shrink-0" />
         <span className="max-w-[180px] truncate">{currentName || "Untitled Report"}</span>
         <svg
           width="12"
@@ -62,23 +62,21 @@ export function ReportSwitcher({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-2 z-50 w-72 rounded-2xl border border-[#1E2633] bg-[#0D1117] shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="px-4 py-3 border-b border-[#1E2633] bg-[#0F1620]">
-            <p className="text-[10px] font-bold text-[#8B9BB4] uppercase tracking-widest">
+        <div className="absolute left-0 top-full mt-2 z-50 w-72 rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-overlay)] shadow-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--border-strong)] bg-[var(--section-header)]">
+            <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">
               Switch Report
             </p>
           </div>
 
-          {/* Current report */}
-          <div className="px-3 py-2 border-b border-[#1E2633]">
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#00E5FF]/8 border border-[#00E5FF]/20">
-              <span className="w-2 h-2 rounded-full bg-[#00E5FF] shrink-0" />
+          <div className="px-3 py-2 border-b border-[var(--border-strong)]">
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--accent-bg)] border border-[var(--accent-border-sm)]">
+              <span className="w-2 h-2 rounded-full bg-[var(--accent)] shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-[#00E5FF] truncate">
+                <p className="text-sm font-semibold text-[var(--accent)] truncate">
                   {currentName || "Untitled Report"}
                 </p>
-                <p className="text-[10px] text-[#4A5568]">Current</p>
+                <p className="text-[10px] text-[var(--text-faint)]">Current</p>
               </div>
               <svg
                 width="14"
@@ -87,17 +85,16 @@ export function ReportSwitcher({
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2.5"
-                className="text-[#00E5FF] shrink-0"
+                className="text-[var(--accent)] shrink-0"
               >
                 <path d="M20 6L9 17l-5-5" />
               </svg>
             </div>
           </div>
 
-          {/* Other reports */}
           <div className="max-h-64 overflow-y-auto py-2 px-3 space-y-1">
             {others.length === 0 ? (
-              <p className="text-xs text-[#4A5568] text-center py-4">No other reports</p>
+              <p className="text-xs text-[var(--text-faint)] text-center py-4">No other reports</p>
             ) : (
               others.map((r) => (
                 <button
@@ -107,18 +104,18 @@ export function ReportSwitcher({
                     setOpen(false);
                     router.push(`/dashboard/clients/${clientId}/reports/${r.id}`);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-[#1A2233] transition-all group"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-[var(--bg-elevated)] transition-all group"
                 >
                   <span
                     className={`w-2 h-2 rounded-full shrink-0 ${
-                      r.status === "published" ? "bg-[#00FF9D]" : "bg-[#3A4558]"
+                      r.status === "published" ? "bg-[var(--success)]" : "bg-[var(--border-strong)]"
                     }`}
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-[#A0AEC0] group-hover:text-white truncate transition-colors">
+                    <p className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] truncate transition-colors">
                       {r.campaign_name || "Untitled Report"}
                     </p>
-                    <p className="text-[10px] text-[#4A5568]">
+                    <p className="text-[10px] text-[var(--text-faint)]">
                       {r.status === "published" ? "Published" : "Draft"}
                     </p>
                   </div>
@@ -129,7 +126,7 @@ export function ReportSwitcher({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
-                    className="text-[#4A5568] group-hover:text-[#00E5FF] shrink-0 transition-colors"
+                    className="text-[var(--text-faint)] group-hover:text-[var(--accent)] shrink-0 transition-colors"
                   >
                     <path d="M9 18l6-6-6-6" />
                   </svg>
@@ -138,15 +135,14 @@ export function ReportSwitcher({
             )}
           </div>
 
-          {/* Footer */}
-          <div className="px-3 py-2 border-t border-[#1E2633]">
+          <div className="px-3 py-2 border-t border-[var(--border-strong)]">
             <button
               type="button"
               onClick={() => {
                 setOpen(false);
                 router.push(`/dashboard/clients/${clientId}`);
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[#8B9BB4] hover:text-white hover:bg-[#1A2233] transition-all"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-all"
             >
               <svg
                 width="12"

@@ -4,7 +4,7 @@ import { publish, unpublish, duplicate } from "../../actions";
 import { IconDuplicate, IconPublish, IconUnpublish, iconClass } from "./report-icons";
 
 const iconBtn =
-  "inline-flex items-center justify-center rounded-lg p-2 border border-transparent transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00E5FF]/40";
+  "inline-flex items-center justify-center rounded-lg p-2 border border-transparent transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]";
 
 export function PublishButton({
   reportId,
@@ -39,7 +39,7 @@ export function PublishButton({
       <button
         type="button"
         onClick={handleUnpublish}
-        className={`${iconBtn} text-[#A0AEC0] hover:text-white hover:bg-[#252B35]/60 hover:border-[#353B45]`}
+        className={`${iconBtn} text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] hover:border-[var(--hover-border)]`}
         title="Unpublish"
         aria-label="Unpublish"
       >
@@ -52,7 +52,7 @@ export function PublishButton({
     <button
       type="button"
       onClick={handlePublish}
-      className={`${iconBtn} text-[#00FF9D] hover:bg-[#00FF9D]/15 hover:border-[#00FF9D]/25`}
+      className={`${iconBtn} text-[var(--success)] hover:bg-[var(--success-bg)] hover:border-[var(--success)]`}
       title="Publish"
       aria-label="Publish"
     >
@@ -72,7 +72,7 @@ export function DuplicateButton({
     <button
       type="button"
       onClick={() => duplicate(reportId, clientId)}
-      className={`${iconBtn} text-[#A0AEC0] hover:text-white hover:bg-[#252B35]/60 hover:border-[#353B45]`}
+      className={`${iconBtn} text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] hover:border-[var(--hover-border)]`}
       title="Duplicate"
       aria-label="Duplicate"
     >

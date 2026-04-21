@@ -23,7 +23,7 @@ function AddClientSubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="px-4 py-2 bg-[#00E5FF] text-[#0B0F14] font-semibold rounded-lg text-sm hover:bg-[#00CCE5] disabled:opacity-60 disabled:cursor-not-allowed transition"
+      className="px-4 py-2 bg-[var(--accent)] text-white font-semibold rounded-lg text-sm hover:bg-[var(--accent-hover)] disabled:opacity-60 disabled:cursor-not-allowed transition"
     >
       {pending ? "Adding..." : "Add client"}
     </button>
@@ -35,29 +35,29 @@ function AddClientForm() {
     <form action={addClient} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="block text-xs text-[#A0AEC0] mb-1">Company name *</label>
+          <label className="block text-xs text-[var(--text-secondary)] mb-1">Company name *</label>
           <input
             name="company_name"
             required
             placeholder="NextPlat Corp"
-            className="w-full px-3 py-2 bg-[#0B0F14] border border-[#252B35] rounded-lg text-white text-sm placeholder-[#4A5568] focus:outline-none focus:border-[#00E5FF] transition"
+            className="w-full px-3 py-2 bg-[var(--bg-base)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm placeholder-[var(--placeholder)] focus:outline-none focus:border-[var(--accent)] transition"
           />
         </div>
         <div>
-          <label className="block text-xs text-[#A0AEC0] mb-1">Ticker</label>
+          <label className="block text-xs text-[var(--text-secondary)] mb-1">Ticker</label>
           <input
             name="ticker"
             placeholder="NXPL"
-            className="w-full px-3 py-2 bg-[#0B0F14] border border-[#252B35] rounded-lg text-white text-sm placeholder-[#4A5568] focus:outline-none focus:border-[#00E5FF] transition"
+            className="w-full px-3 py-2 bg-[var(--bg-base)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm placeholder-[var(--placeholder)] focus:outline-none focus:border-[var(--accent)] transition"
           />
         </div>
         <div>
-          <label className="block text-xs text-[#A0AEC0] mb-1">Contact email</label>
+          <label className="block text-xs text-[var(--text-secondary)] mb-1">Contact email</label>
           <input
             name="contact_email"
             type="email"
             placeholder="ir@company.com"
-            className="w-full px-3 py-2 bg-[#0B0F14] border border-[#252B35] rounded-lg text-white text-sm placeholder-[#4A5568] focus:outline-none focus:border-[#00E5FF] transition"
+            className="w-full px-3 py-2 bg-[var(--bg-base)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm placeholder-[var(--placeholder)] focus:outline-none focus:border-[var(--accent)] transition"
           />
         </div>
       </div>
@@ -135,7 +135,7 @@ export function ClientDashboardSection({ clients, children }: { clients: ClientL
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by name, ticker, or email…"
             autoComplete="off"
-            className="w-full px-4 py-3 bg-[#151A22] border border-[#252B35] rounded-xl text-white text-sm placeholder-[#4A5568] focus:outline-none focus:border-[#00E5FF] transition"
+            className="w-full px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-[var(--text-primary)] text-sm placeholder-[var(--placeholder)] focus:outline-none focus:border-[var(--accent)] transition"
           />
         </div>
         <div className="flex shrink-0 items-center gap-2 justify-end">
@@ -145,15 +145,15 @@ export function ClientDashboardSection({ clients, children }: { clients: ClientL
               onClick={() => setFilterOpen((o) => !o)}
               className={`px-4 py-3 rounded-xl text-sm font-medium border transition whitespace-nowrap ${
                 filterActive
-                  ? "border-[#00E5FF] text-[#00E5FF] bg-[#00E5FF]/10"
-                  : "border-[#252B35] text-[#A0AEC0] hover:text-white hover:border-[#353B45] bg-[#151A22]"
+                  ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent-bg)]"
+                  : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--hover-border)] bg-[var(--bg-surface)]"
               }`}
             >
               Filter
             </button>
             {filterOpen && (
-              <div className="absolute right-0 top-full z-40 mt-2 w-64 rounded-xl border border-[#252B35] bg-[#151A22] p-4 shadow-xl">
-                <p className="text-xs font-semibold text-[#A0AEC0] uppercase tracking-wider mb-3">Sort</p>
+              <div className="absolute right-0 top-full z-40 mt-2 w-64 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-xl">
+                <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">Sort</p>
                 <div className="space-y-1 mb-4">
                   {(
                     [
@@ -170,14 +170,14 @@ export function ClientDashboardSection({ clients, children }: { clients: ClientL
                         setSortMode(value);
                       }}
                       className={`w-full text-left rounded-lg px-3 py-2 text-sm transition ${
-                        sortMode === value ? "bg-[#00E5FF]/15 text-[#00E5FF]" : "text-[#A0AEC0] hover:bg-[#252B35]"
+                        sortMode === value ? "bg-[var(--accent-bg)] text-[var(--accent)]" : "text-[var(--text-secondary)] hover:bg-[var(--hover-bg)]"
                       }`}
                     >
                       {label}
                     </button>
                   ))}
                 </div>
-                <p className="text-xs font-semibold text-[#A0AEC0] uppercase tracking-wider mb-3">Show</p>
+                <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">Show</p>
                 <div className="space-y-1">
                   {(
                     [
@@ -191,7 +191,7 @@ export function ClientDashboardSection({ clients, children }: { clients: ClientL
                       type="button"
                       onClick={() => setScope(value)}
                       className={`w-full text-left rounded-lg px-3 py-2 text-sm transition ${
-                        scope === value ? "bg-[#7B61FF]/20 text-[#7B61FF]" : "text-[#A0AEC0] hover:bg-[#252B35]"
+                        scope === value ? "bg-[var(--accent-bg)] text-[var(--accent)]" : "text-[var(--text-secondary)] hover:bg-[var(--hover-bg)]"
                       }`}
                     >
                       {label}
@@ -206,7 +206,7 @@ export function ClientDashboardSection({ clients, children }: { clients: ClientL
                     setQuery("");
                     setFilterOpen(false);
                   }}
-                  className="mt-4 w-full rounded-lg border border-[#252B35] py-2 text-xs text-[#4A5568] hover:text-white hover:border-[#353B45] transition"
+                  className="mt-4 w-full rounded-lg border border-[var(--border)] py-2 text-xs text-[var(--text-faint)] hover:text-[var(--text-primary)] hover:border-[var(--hover-border)] transition"
                 >
                   Reset all
                 </button>
@@ -216,7 +216,7 @@ export function ClientDashboardSection({ clients, children }: { clients: ClientL
           <button
             type="button"
             onClick={() => setAddOpen(true)}
-            className="px-4 py-3 rounded-xl text-sm font-semibold bg-[#00E5FF] text-[#0B0F14] hover:bg-[#00CCE5] transition whitespace-nowrap"
+            className="px-4 py-3 rounded-xl text-sm font-semibold bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition whitespace-nowrap"
           >
             Add client
           </button>
@@ -234,7 +234,7 @@ export function ClientDashboardSection({ clients, children }: { clients: ClientL
           }}
         >
           <div
-            className="w-full max-w-2xl rounded-2xl border border-[#252B35] bg-[#0B0F14] p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-2xl rounded-2xl border border-[var(--border)] bg-[var(--bg-base)] p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4 mb-6">
@@ -244,7 +244,7 @@ export function ClientDashboardSection({ clients, children }: { clients: ClientL
               <button
                 type="button"
                 onClick={() => setAddOpen(false)}
-                className="text-[#4A5568] hover:text-white text-xl leading-none px-2"
+                className="text-[var(--text-faint)] hover:text-[var(--text-primary)] text-xl leading-none px-2"
                 aria-label="Close"
               >
                 ×
@@ -256,21 +256,21 @@ export function ClientDashboardSection({ clients, children }: { clients: ClientL
       )}
 
       {clients.length === 0 ? (
-        <div className="rounded-xl border border-[#252B35] bg-[#151A22] p-12 text-center mt-8">
-          <p className="text-[#4A5568] text-lg">No clients yet</p>
-          <p className="text-[#4A5568] text-sm mt-1 mb-6">Create your first client to start building reports.</p>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-12 text-center mt-8">
+          <p className="text-[var(--text-faint)] text-lg">No clients yet</p>
+          <p className="text-[var(--text-faint)] text-sm mt-1 mb-6">Create your first client to start building reports.</p>
           <button
             type="button"
             onClick={() => setAddOpen(true)}
-            className="px-5 py-2.5 bg-[#00E5FF] text-[#0B0F14] font-semibold rounded-lg text-sm hover:bg-[#00CCE5] transition"
+            className="px-5 py-2.5 bg-[var(--accent)] text-white font-semibold rounded-lg text-sm hover:bg-[var(--accent-hover)] transition"
           >
             Add client
           </button>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-[#252B35] bg-[#151A22] p-12 text-center mt-8">
-          <p className="text-[#4A5568] text-lg">No matching clients</p>
-          <p className="text-[#4A5568] text-sm mt-1">Try adjusting search or filters.</p>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-12 text-center mt-8">
+          <p className="text-[var(--text-faint)] text-lg">No matching clients</p>
+          <p className="text-[var(--text-faint)] text-sm mt-1">Try adjusting search or filters.</p>
           <button
             type="button"
             onClick={() => {
@@ -278,9 +278,9 @@ export function ClientDashboardSection({ clients, children }: { clients: ClientL
               setSortMode("default");
               setScope("all");
             }}
-            className="mt-4 text-sm text-[#00E5FF] hover:underline"
+            className="mt-4 text-sm text-[var(--accent)] hover:underline"
           >
-            Clear search & filters
+            Clear search &amp; filters
           </button>
         </div>
       ) : (
@@ -288,18 +288,18 @@ export function ClientDashboardSection({ clients, children }: { clients: ClientL
           {filtered.map((client) => (
             <div
               key={client.id}
-              className="rounded-xl border border-[#252B35] bg-[#151A22] p-5 flex items-center justify-between hover:border-[#353B45] transition"
+              className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5 flex items-center justify-between hover:border-[var(--hover-border)] transition"
             >
               <Link href={`/dashboard/clients/${client.id}`} className="flex-1">
                 <div className="flex items-center gap-3">
-                  <h3 className="font-semibold text-white">{client.company_name}</h3>
+                  <h3 className="font-semibold text-[var(--text-primary)]">{client.company_name}</h3>
                   {client.ticker && (
-                    <span className="text-xs px-2 py-0.5 rounded bg-[#252B35] text-[#00E5FF] font-mono">
+                    <span className="text-xs px-2 py-0.5 rounded bg-[var(--hover-bg)] text-[var(--accent)] font-mono">
                       ${client.ticker}
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-[#A0AEC0] mt-1">
+                <p className="text-sm text-[var(--text-secondary)] mt-1">
                   {client.report_count} report{client.report_count !== 1 ? "s" : ""}
                   {client.contact_email && ` · ${client.contact_email}`}
                 </p>
@@ -308,7 +308,7 @@ export function ClientDashboardSection({ clients, children }: { clients: ClientL
                 <input type="hidden" name="clientId" value={client.id} />
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center rounded-lg p-2 text-[#4A5568] border border-transparent hover:text-[#FF4D4D] hover:bg-[#FF4D4D]/10 hover:border-[#FF4D4D]/20 transition ml-4"
+                  className="inline-flex items-center justify-center rounded-lg p-2 text-[var(--text-faint)] border border-transparent hover:text-[var(--danger)] hover:bg-[var(--danger-bg)] hover:border-[var(--danger-border)] transition ml-4"
                   title="Delete client"
                   aria-label="Delete client"
                 >
