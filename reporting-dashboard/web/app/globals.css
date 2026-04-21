@@ -1,8 +1,69 @@
 @import "tailwindcss";
 
+/* ─── Light mode (default) ─── */
 :root {
-  --background: #0B0F14;
-  --foreground: #ffffff;
+  --bg-base:         #F0F4F8;
+  --bg-surface:      #FFFFFF;
+  --bg-elevated:     #E8EDF2;
+  --bg-overlay:      #F5F8FB;
+  --bg-card:         #F7FAFC;
+  --border:          #CBD5E0;
+  --border-strong:   #B8C4CF;
+  --text-primary:    #0B0F14;
+  --text-secondary:  #4A5568;
+  --text-muted:      #64748B;
+  --text-faint:      #94A3B8;
+  --placeholder:     #94A3B8;
+  --accent:          #0099BB;
+  --accent-hover:    #007A99;
+  --accent-bg:       rgba(0,153,187,0.10);
+  --accent-bg-sub:   rgba(0,153,187,0.05);
+  --accent-border:   rgba(0,153,187,0.30);
+  --accent-border-sm:rgba(0,153,187,0.20);
+  --success:         #059669;
+  --success-bg:      rgba(5,150,105,0.10);
+  --danger:          #DC2626;
+  --danger-bg:       rgba(220,38,38,0.10);
+  --danger-border:   rgba(220,38,38,0.20);
+  --purple:          #6B4FE0;
+  --hover-bg:        #E2E8F0;
+  --hover-border:    #A0ADB8;
+  --section-header:  #EDF2F7;
+  --foreground:      #0B0F14;
+  --background:      #F0F4F8;
+}
+
+/* ─── Dark mode ─── */
+.dark {
+  --bg-base:         #0B0F14;
+  --bg-surface:      #151A22;
+  --bg-elevated:     #1A2233;
+  --bg-overlay:      #0D1117;
+  --bg-card:         #111720;
+  --border:          #252B35;
+  --border-strong:   #1E2633;
+  --text-primary:    #ffffff;
+  --text-secondary:  #A0AEC0;
+  --text-muted:      #8B9BB4;
+  --text-faint:      #4A5568;
+  --placeholder:     #3A4558;
+  --accent:          #00E5FF;
+  --accent-hover:    #00CCE5;
+  --accent-bg:       rgba(0,229,255,0.10);
+  --accent-bg-sub:   rgba(0,229,255,0.05);
+  --accent-border:   rgba(0,229,255,0.30);
+  --accent-border-sm:rgba(0,229,255,0.20);
+  --success:         #00FF9D;
+  --success-bg:      rgba(0,255,157,0.10);
+  --danger:          #FF4D4D;
+  --danger-bg:       rgba(255,77,77,0.10);
+  --danger-border:   rgba(255,77,77,0.20);
+  --purple:          #7B61FF;
+  --hover-bg:        #252B35;
+  --hover-border:    #2E3A4E;
+  --section-header:  #0F1620;
+  --foreground:      #ffffff;
+  --background:      #0B0F14;
 }
 
 body {
@@ -16,10 +77,32 @@ body {
     display: none !important;
   }
 
+  html,
+  body {
+    background: #060a0f !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /*
+   * Chromium repeats position:fixed on every printed page, which causes banding /
+   * dark strips across multi-page PDFs. Anchor decorative layers to the full document instead.
+   */
+  .report-print-bg {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    min-height: 100% !important;
+  }
+
   .pdf-slide {
     break-after: page;
     page-break-after: always;
-    min-height: 100vh;
+    /* 100vh = one viewport per sheet in PDF → fights tall slides; let height follow content */
+    min-height: 0;
   }
 
   #extended .pdf-slide {

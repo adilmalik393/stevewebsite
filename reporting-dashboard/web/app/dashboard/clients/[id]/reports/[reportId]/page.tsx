@@ -5,6 +5,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ReportForm } from "./report-form";
 import { ReportSwitcher } from "./report-switcher";
+import { AnalyticsModal } from "./analytics-modal";
 
 export default async function ReportEditorPage(props: {
   params: Promise<{ id: string; reportId: string }>;
@@ -23,29 +24,27 @@ export default async function ReportEditorPage(props: {
   if (!report || report.client_id !== id) notFound();
 
   return (
-    <div className="min-h-screen bg-[#0B0F14] text-white">
-      <header className="border-b border-[#1E2633] bg-[#0D1117] px-6 py-3 flex items-center justify-between gap-4">
-        {/* Breadcrumb */}
+    <div className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)]">
+      <header className="border-b border-[var(--border-strong)] bg-[var(--bg-overlay)] px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm min-w-0">
           <Link
             href="/dashboard"
-            className="text-[#4A5568] hover:text-[#8B9BB4] transition-colors shrink-0"
+            className="text-[var(--text-faint)] hover:text-[var(--text-muted)] transition-colors shrink-0"
           >
             Dashboard
           </Link>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#1E2633] shrink-0">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--border-strong)] shrink-0">
             <path d="M9 18l6-6-6-6" />
           </svg>
           <Link
             href={`/dashboard/clients/${id}`}
-            className="text-[#4A5568] hover:text-[#8B9BB4] transition-colors truncate max-w-[120px]"
+            className="text-[var(--text-faint)] hover:text-[var(--text-muted)] transition-colors truncate max-w-[120px]"
           >
             {client.company_name}
           </Link>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#1E2633] shrink-0">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--border-strong)] shrink-0">
             <path d="M9 18l6-6-6-6" />
           </svg>
-          {/* Report Switcher Dropdown */}
           <ReportSwitcher
             clientId={id}
             currentReportId={reportId}
@@ -59,27 +58,31 @@ export default async function ReportEditorPage(props: {
           <span
             className={`text-xs px-2 py-0.5 rounded-lg font-semibold shrink-0 ${
               report.status === "published"
-                ? "bg-[#00FF9D]/10 text-[#00FF9D]"
-                : "bg-[#1E2633] text-[#4A5568]"
+                ? "bg-[var(--success-bg)] text-[var(--success)]"
+                : "bg-[var(--border-strong)] text-[var(--text-faint)]"
             }`}
           >
             {report.status}
           </span>
         </div>
 
-        {/* Right side */}
-        {report.slug && report.status === "published" && (
-          <Link
-            href={`/r/${report.slug}`}
-            target="_blank"
-            className="shrink-0 flex items-center gap-1.5 text-xs text-[#00E5FF] hover:underline"
-          >
-            View live report
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
-            </svg>
-          </Link>
-        )}
+        <div className="flex items-center gap-3 shrink-0">
+          {report.status === "published" && (
+            <AnalyticsModal reportId={report.id} />
+          )}
+          {report.slug && report.status === "published" && (
+            <Link
+              href={`/r/${report.slug}`}
+              target="_blank"
+              className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline"
+            >
+              View live report
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+              </svg>
+            </Link>
+          )}
+        </div>
       </header>
 
       <ReportForm
