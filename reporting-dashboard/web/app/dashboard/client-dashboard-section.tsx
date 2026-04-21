@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useFormStatus } from "react-dom";
 import { removeClient, addClient } from "./actions";
 
 export type ClientListRow = {
@@ -14,6 +15,20 @@ export type ClientListRow = {
 
 type SortMode = "default" | "name-asc" | "name-desc" | "reports-desc";
 type ScopeFilter = "all" | "with-ticker" | "with-email";
+
+function AddClientSubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="px-4 py-2 bg-[#00E5FF] text-[#0B0F14] font-semibold rounded-lg text-sm hover:bg-[#00CCE5] disabled:opacity-60 disabled:cursor-not-allowed transition"
+    >
+      {pending ? "Adding..." : "Add client"}
+    </button>
+  );
+}
 
 function AddClientForm() {
   return (
@@ -47,12 +62,7 @@ function AddClientForm() {
         </div>
       </div>
       <div className="flex justify-end gap-2 pt-2">
-        <button
-          type="submit"
-          className="px-4 py-2 bg-[#00E5FF] text-[#0B0F14] font-semibold rounded-lg text-sm hover:bg-[#00CCE5] transition"
-        >
-          Add client
-        </button>
+        <AddClientSubmitButton />
       </div>
     </form>
   );
@@ -298,9 +308,26 @@ export function ClientDashboardSection({ clients, children }: { clients: ClientL
                 <input type="hidden" name="clientId" value={client.id} />
                 <button
                   type="submit"
-                  className="text-xs text-[#4A5568] hover:text-[#FF4D4D] transition ml-4"
+                  className="inline-flex items-center justify-center rounded-lg p-2 text-[#4A5568] border border-transparent hover:text-[#FF4D4D] hover:bg-[#FF4D4D]/10 hover:border-[#FF4D4D]/20 transition ml-4"
+                  title="Delete client"
+                  aria-label="Delete client"
                 >
-                  Delete
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6" />
+                    <path d="M14 11v6" />
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
                 </button>
               </form>
             </div>

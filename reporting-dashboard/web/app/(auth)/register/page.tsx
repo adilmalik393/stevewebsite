@@ -18,19 +18,28 @@ export default function RegisterPage() {
     setError("");
     setLoading(true);
 
-    const { error: authError } = await authClient.signUp.email({
-      name,
-      email,
-      password,
-    });
+    try {
+      const { error: authError } = await authClient.signUp.email({
+        name,
+        email,
+        password,
+      });
 
-    if (authError) {
-      setError(authError.message || "Registration failed");
+      if (authError) {
+        setError(authError.message || "Registration failed");
+        return;
+      }
+
+      router.push("/dashboard");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Registration failed. Please try again.";
+      setError(message);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    router.push("/dashboard");
   }
 
   return (

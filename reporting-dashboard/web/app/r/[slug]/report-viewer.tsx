@@ -394,6 +394,1092 @@ function Slide({ children, className = "" }: { children: React.ReactNode; classN
   );
 }
 
+/** Auto-generated insight chip used in Report 2 analytics dashboard. */
+function InsightChip({
+  icon,
+  text,
+  detail,
+  positive,
+  neutral,
+}: {
+  icon: string;
+  text: string;
+  detail: string;
+  positive?: boolean;
+  neutral?: boolean;
+}) {
+  const color = neutral ? "#7B61FF" : positive ? "#00FF9D" : "#F59E0B";
+  const bg = neutral ? "rgba(123,97,255,0.08)" : positive ? "rgba(0,255,157,0.07)" : "rgba(245,158,11,0.07)";
+  const border = neutral ? "rgba(123,97,255,0.20)" : positive ? "rgba(0,255,157,0.20)" : "rgba(245,158,11,0.20)";
+  const badge = neutral ? "ℹ Insight" : positive ? "↑ Positive" : "↓ Attention";
+  return (
+    <div className="flex flex-col gap-2.5 rounded-2xl p-4" style={{ background: bg, border: `1px solid ${border}` }}>
+      <div className="flex items-center gap-2">
+        <span className="text-base leading-none">{icon}</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color }}>{badge}</span>
+      </div>
+      <p className="text-sm font-semibold text-white leading-snug">{text}</p>
+      <p className="text-xs text-[#5C6573] leading-relaxed">{detail}</p>
+    </div>
+  );
+}
+
+/* ═══════════════════════════ REPORT DASHBOARD V2 ═══════════════════════════ */
+
+/* ── Shared sub-components used exclusively inside ReportDashboardV2 ── */
+
+function V2SectionHeader({ num, title, subtitle }: { num: string; title: string; subtitle?: string }) {
+  return (
+    <div className="flex items-start gap-4 mb-5">
+      <span className="shrink-0 mt-0.5 text-xs font-black tabular-nums text-[#3B82F6] bg-[#3B82F6]/10 border border-[#3B82F6]/20 rounded-lg px-2 py-0.5 tracking-widest">
+        {num}
+      </span>
+      <div>
+        <h2 className="text-lg font-bold text-white leading-tight">{title}</h2>
+        {subtitle && <p className="text-xs text-[#6B7280] mt-0.5">{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
+
+function V2Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={`rounded-2xl border border-white/[0.06] bg-[#1C1F26] ${className}`}
+      style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.15)" }}
+    >
+      {children}
+    </div>
+  );
+}
+
+const KPI_ICONS: Record<string, (color: string) => React.ReactNode> = {
+  reach: (c) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  ),
+  engagement: (c) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  ),
+  signal: (c) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="19" x2="12" y2="5" />
+      <polyline points="5 12 12 5 19 12" />
+    </svg>
+  ),
+  click: (c) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4l7.07 17 2.51-7.39L21 11.07z" />
+    </svg>
+  ),
+  assets: (c) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
+    </svg>
+  ),
+};
+
+function V2KpiCard({
+  label,
+  value,
+  icon,
+  color,
+  delta,
+  positive,
+  subtitle,
+}: {
+  label: string;
+  value: string;
+  icon: string;
+  color: string;
+  delta?: string;
+  positive?: boolean;
+  subtitle?: string;
+}) {
+  const renderIcon = KPI_ICONS[icon];
+  return (
+    <V2Card className="p-5 flex flex-col gap-3 group hover:border-white/[0.12] transition-colors cursor-default">
+      <div className="flex items-center justify-between">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: `${color}18`, border: `1px solid ${color}25` }}
+        >
+          {renderIcon ? renderIcon(color) : <span className="text-base">{icon}</span>}
+        </div>
+        {delta && (
+          <span
+            className="text-[11px] font-bold px-2 py-0.5 rounded-lg tabular-nums"
+            style={{
+              color: positive ? "#22C55E" : "#EF4444",
+              background: positive ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
+              border: `1px solid ${positive ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`,
+            }}
+          >
+            {positive ? "↑" : "↓"} {delta}
+          </span>
+        )}
+      </div>
+      <div>
+        <p className="text-3xl font-black tabular-nums leading-none mb-1" style={{ color }}>
+          {value}
+        </p>
+        <p className="text-xs font-medium text-[#6B7280] uppercase tracking-wider">{label}</p>
+        {subtitle && <p className="text-[11px] text-[#4B5563] mt-1">{subtitle}</p>}
+      </div>
+    </V2Card>
+  );
+}
+
+function V2InsightIcon({ type, color }: { type: string; color: string }) {
+  const iconBg = `${color}18`;
+  const icons: Record<string, React.ReactNode> = {
+    signal: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+        <polyline points="16 7 22 7 22 13" />
+      </svg>
+    ),
+    target: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="6" />
+        <circle cx="12" cy="12" r="2" />
+      </svg>
+    ),
+    message: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
+    mail: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+        <polyline points="22,6 12,13 2,6" />
+      </svg>
+    ),
+    bar: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    ),
+  };
+  return (
+    <div
+      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+      style={{ background: iconBg }}
+    >
+      {icons[type] ?? icons.bar}
+    </div>
+  );
+}
+
+function V2InsightCard({
+  icon,
+  text,
+  detail,
+  positive,
+  neutral,
+}: {
+  icon: string;
+  text: string;
+  detail: string;
+  positive?: boolean;
+  neutral?: boolean;
+}) {
+  const color = neutral ? "#60A5FA" : positive ? "#22C55E" : "#EF4444";
+  const borderColor = neutral ? "rgba(96,165,250,0.3)" : positive ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)";
+  const bg = neutral ? "rgba(96,165,250,0.05)" : positive ? "rgba(34,197,94,0.05)" : "rgba(239,68,68,0.05)";
+  const tag = neutral ? "INSIGHT" : positive ? "POSITIVE" : "ATTENTION";
+
+  return (
+    <div
+      className="rounded-xl p-4 flex gap-3 hover:opacity-90 transition-opacity"
+      style={{ background: bg, border: `1px solid ${borderColor}`, borderLeft: `3px solid ${color}` }}
+    >
+      <V2InsightIcon type={icon} color={color} />
+      <div className="min-w-0">
+        <span
+          className="inline-block text-[10px] font-black uppercase tracking-[0.15em] px-1.5 py-0.5 rounded mb-1.5"
+          style={{ color, background: `${color}15` }}
+        >
+          {tag}
+        </span>
+        <p className="text-sm font-semibold text-white leading-snug">{text}</p>
+        <p className="text-xs text-[#6B7280] mt-1 leading-relaxed">{detail}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────── */
+
+function V2SvgIcon({ name, color = "currentColor", size = 14 }: { name: string; color?: string; size?: number }) {
+  const s = size;
+  const icons: Record<string, React.ReactNode> = {
+    broadcast: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>,
+    chat:      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+    trending:  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
+    cursor:    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4l7.07 17 2.51-7.39L21 11.07z"/></svg>,
+    box:       <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
+    activity:  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+    bar:       <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+    gauge:     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 2a10 10 0 0 0-10 10"/><path d="M12 12l4-4"/><circle cx="12" cy="12" r="2"/></svg>,
+    star:      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+    zap:       <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+    users:     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+    globe:     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
+    lightbulb: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>,
+    heart:     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>,
+    share:     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
+    mail:      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
+    bell:      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+    play:      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>,
+    file:      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>,
+    target:    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
+    updown:    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 5 5 12"/></svg>,
+    trenddown: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>,
+  };
+  return <>{icons[name] ?? null}</>;
+}
+
+function ReportDashboardV2({
+  companyName,
+  ticker,
+  campaignName,
+  campaignStart,
+  campaignEnd,
+  payload: p,
+  isDraft,
+}: {
+  companyName: string;
+  ticker: string | null;
+  campaignName: string;
+  campaignStart: string | null;
+  campaignEnd: string | null;
+  payload: ReportPayload;
+  isDraft?: boolean;
+}) {
+  const assetTotal =
+    (p.x_threads || 0) + (p.reddit_posts || 0) + (p.videos || 0) +
+    (p.articles || 0) + (p.emails || 0) + (p.push_notifications || 0);
+
+  const scoreDelta =
+    p.signal_score_after != null && p.signal_score_before != null
+      ? p.signal_score_after - p.signal_score_before
+      : null;
+
+  const channels = useMemo(() => [
+    { label: "X / Threads", value: p.x_reach || 0 },
+    { label: "Reddit",       value: p.reddit_reach || 0 },
+    { label: "Discord",      value: p.discord_reach || 0 },
+    { label: "Telegram",     value: p.telegram_reach || 0 },
+    { label: "Email",        value: p.email_reach || 0 },
+  ].filter((c) => c.value > 0).sort((a, b) => b.value - a.value), [p]);
+
+  const engRate =
+    p.total_engagements && p.total_reach && p.total_reach > 0
+      ? ((p.total_engagements / p.total_reach) * 100).toFixed(2)
+      : null;
+
+  const axes = [
+    { label: "Execution",   before: p.execution_before || 0,      after: p.execution_after || 0 },
+    { label: "Clarity",     before: p.clarity_before || 0,        after: p.clarity_after || 0 },
+    { label: "Distribution",before: p.distribution_before || 0,   after: p.distribution_after || 0 },
+    { label: "Engagement",  before: p.engagement_axis_before || 0, after: p.engagement_axis_after || 0 },
+  ].filter((a) => a.before > 0 || a.after > 0);
+
+  /* palette */
+  const LINE  = "1px solid #192035";
+  const AMBER = "#F59E0B";
+  const GREEN = "#10B981";
+  const RED   = "#EF4444";
+  const BG    = "#060D1A";
+  const PANEL = "#0B1525";
+  const TEXT  = "#C8D6E8";
+  const MUTED = "#3A4D6B";
+  const DIM   = "#5C7A9E";
+
+  return (
+    <div className="min-h-screen font-[family-name:var(--font-inter)]" style={{ background: BG, color: TEXT }}>
+
+      {isDraft && (
+        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center">
+          <span className="rotate-[-25deg] text-[10rem] font-extrabold tracking-[0.3em] select-none" style={{ color: "rgba(245,158,11,0.04)" }}>
+            DRAFT
+          </span>
+        </div>
+      )}
+
+      {/* ── Top ticker bar ── */}
+      <div className="sticky top-0 z-20" style={{ background: PANEL, borderBottom: LINE }}>
+        <div className="max-w-[1200px] mx-auto px-6 py-2.5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] shrink-0" style={{ color: AMBER }}>
+              EDM SIGNAL
+            </span>
+            <span style={{ color: MUTED }}>│</span>
+            <span className="font-mono text-[11px] truncate" style={{ color: DIM }}>{companyName}</span>
+            {ticker && (
+              <span className="font-mono text-[11px] font-bold px-2 py-0.5 shrink-0" style={{ color: AMBER, background: "#F59E0B12", border: "1px solid #F59E0B30" }}>
+                {ticker}
+              </span>
+            )}
+            {isDraft && (
+              <span className="font-mono text-[11px] uppercase tracking-widest px-2 py-0.5 shrink-0" style={{ color: RED, border: "1px solid #EF444440" }}>
+                DRAFT
+              </span>
+            )}
+          </div>
+          <div className="font-mono text-[11px] shrink-0" style={{ color: MUTED }}>
+            {campaignStart && campaignEnd ? `${campaignStart} — ${campaignEnd}` : campaignStart || campaignEnd || ""}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-[1200px] mx-auto">
+
+        {/* ── Title ── */}
+        <div className="px-6 py-10" style={{ borderBottom: LINE }}>
+          <p className="font-mono text-[11px] uppercase tracking-[0.25em] mb-3" style={{ color: AMBER }}>
+            // Campaign Performance Report
+          </p>
+          <h1 className="text-4xl md:text-5xl font-black leading-none tracking-tight text-white">
+            {campaignName || "Performance Report"}
+          </h1>
+          <p className="mt-3 font-mono text-sm" style={{ color: DIM }}>
+            Prepared by {p.prepared_by || "EDM Media"} · EDM Signal
+          </p>
+        </div>
+
+        {/* ── KPI strip ── */}
+        <div className="grid grid-cols-2 md:grid-cols-5" style={{ borderBottom: LINE }}>
+          {([
+            { label: "TOTAL REACH",    value: fmt(p.total_reach),    delta: null,       color: TEXT,  icon: "broadcast" },
+            { label: "ENGAGEMENTS",    value: fmt(p.total_engagements), delta: null,    color: TEXT,  icon: "chat" },
+            { label: "SIGNAL SCORE",   value: `${p.signal_score_before ?? "—"} → ${p.signal_score_after ?? "—"}`, delta: scoreDelta, color: scoreDelta != null && scoreDelta >= 0 ? GREEN : scoreDelta != null ? RED : TEXT, icon: scoreDelta != null && scoreDelta >= 0 ? "trending" : "trenddown" },
+            { label: "CLICKS",         value: fmt(p.clicks),          delta: null,      color: TEXT,  icon: "cursor" },
+            { label: "ASSETS",         value: fmt(p.assets_deployed ?? assetTotal), delta: null, color: TEXT, icon: "box" },
+          ] as { label: string; value: string; delta: number | null; color: string; icon: string }[]).map((k, i, arr) => (
+            <div key={k.label} className="px-6 py-5" style={{ borderRight: i < arr.length - 1 ? LINE : "none" }}>
+              <div className="flex items-center gap-1.5 mb-2.5">
+                <span style={{ color: MUTED }}><V2SvgIcon name={k.icon} color={MUTED} size={11} /></span>
+                <p className="font-mono text-[10px] uppercase tracking-[0.15em]" style={{ color: MUTED }}>{k.label}</p>
+              </div>
+              <p className="font-mono text-2xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: k.color }}>
+                {k.value}
+              </p>
+              {k.delta != null && (
+                <p className="font-mono text-xs mt-1.5 tabular-nums" style={{ color: k.delta >= 0 ? GREEN : RED }}>
+                  {k.delta >= 0 ? "▲" : "▼"} {Math.abs(k.delta)} pts
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* ── Two-column: insights + score ── */}
+        <div className="grid lg:grid-cols-[1fr_320px]" style={{ borderBottom: LINE }}>
+
+          {/* Left: signal table */}
+          <div className="px-6 py-6" style={{ borderRight: LINE }}>
+            <div className="flex items-center gap-2 mb-5"><V2SvgIcon name="activity" color={AMBER} size={13} /><p className="font-mono text-[11px] uppercase tracking-[0.2em]" style={{ color: AMBER }}>// SIGNALS & INSIGHTS</p></div>
+            <div>
+              <div className="grid grid-cols-[1fr_auto] pb-2 mb-1" style={{ borderBottom: `1px solid ${MUTED}40` }}>
+                <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>Signal</span>
+                <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>Status</span>
+              </div>
+
+              {scoreDelta != null && (
+                <div className="grid grid-cols-[1fr_auto] items-center py-3.5" style={{ borderBottom: `1px solid ${MUTED}20` }}>
+                  <div className="flex items-start gap-2.5">
+                    <span className="mt-0.5 shrink-0" style={{ color: scoreDelta >= 0 ? GREEN : RED }}><V2SvgIcon name={scoreDelta >= 0 ? "trending" : "trenddown"} color={scoreDelta >= 0 ? GREEN : RED} size={14} /></span>
+                    <div><p className="text-sm font-semibold text-white">
+                      Signal score {scoreDelta >= 0 ? "improved" : "declined"} by{" "}
+                      {p.signal_score_before ? Math.round((Math.abs(scoreDelta) / p.signal_score_before) * 100) : Math.abs(scoreDelta)}%
+                    </p>
+                    <p className="font-mono text-xs mt-0.5" style={{ color: DIM }}>{p.signal_score_before ?? "—"} → {p.signal_score_after ?? "—"} pts</p>
+                  </div></div>
+                  <span className="font-mono text-[11px] font-bold px-2.5 py-1 ml-4 shrink-0" style={{ color: scoreDelta >= 0 ? GREEN : RED, background: scoreDelta >= 0 ? "#10B98112" : "#EF444412", border: `1px solid ${scoreDelta >= 0 ? GREEN : RED}40` }}>
+                    {scoreDelta >= 0 ? "POSITIVE" : "WATCH"}
+                  </span>
+                </div>
+              )}
+
+              {channels.length > 0 && (() => {
+                const top = channels[0];
+                const total = channels.reduce((s, c) => s + c.value, 0);
+                return (
+                  <div className="grid grid-cols-[1fr_auto] items-center py-3.5" style={{ borderBottom: `1px solid ${MUTED}20` }}>
+                    <div className="flex items-start gap-2.5">
+                      <span className="mt-0.5 shrink-0" style={{ color: AMBER }}><V2SvgIcon name="target" color={AMBER} size={14} /></span>
+                      <div><p className="text-sm font-semibold text-white">{top.label} leads distribution</p>
+                      <p className="font-mono text-xs mt-0.5" style={{ color: DIM }}>{Math.round((top.value / total) * 100)}% of reach · {fmt(top.value)} impressions</p>
+                    </div></div>
+                    <span className="font-mono text-[11px] font-bold px-2.5 py-1 ml-4 shrink-0" style={{ color: AMBER, background: "#F59E0B12", border: "1px solid #F59E0B40" }}>
+                      TOP CH
+                    </span>
+                  </div>
+                );
+              })()}
+
+              {engRate && (
+                <div className="grid grid-cols-[1fr_auto] items-center py-3.5" style={{ borderBottom: `1px solid ${MUTED}20` }}>
+                  <div className="flex items-start gap-2.5">
+                    <span className="mt-0.5 shrink-0" style={{ color: "#60A5FA" }}><V2SvgIcon name="activity" color="#60A5FA" size={14} /></span>
+                    <div><p className="text-sm font-semibold text-white">{engRate}% overall engagement rate</p>
+                    <p className="font-mono text-xs mt-0.5" style={{ color: DIM }}>{fmt(p.total_engagements)} eng · {fmt(p.total_reach)} reach</p>
+                  </div></div>
+                  <span className="font-mono text-[11px] font-bold px-2.5 py-1 ml-4 shrink-0" style={{ color: "#60A5FA", background: "#60A5FA12", border: "1px solid #60A5FA40" }}>
+                    NEUTRAL
+                  </span>
+                </div>
+              )}
+
+              {channels.length > 2 && (() => {
+                const emailIdx = channels.findIndex((c) => c.label === "Email");
+                if (emailIdx !== -1 && emailIdx > Math.floor(channels.length / 2)) {
+                  return (
+                    <div className="grid grid-cols-[1fr_auto] items-center py-3.5">
+                      <div className="flex items-start gap-2.5">
+                        <span className="mt-0.5 shrink-0" style={{ color: RED }}><V2SvgIcon name="mail" color={RED} size={14} /></span>
+                        <div><p className="text-sm font-semibold text-white">Email underperforming vs channels</p>
+                        <p className="font-mono text-xs mt-0.5" style={{ color: DIM }}>Ranked #{emailIdx + 1} of {channels.length} channels</p>
+                      </div></div>
+                      <span className="font-mono text-[11px] font-bold px-2.5 py-1 ml-4 shrink-0" style={{ color: RED, background: "#EF444412", border: "1px solid #EF444440" }}>
+                        ALERT
+                      </span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          </div>
+
+          {/* Right: score panel */}
+          <div className="px-6 py-6">
+            <div className="flex items-center gap-2 mb-5"><V2SvgIcon name="gauge" color={AMBER} size={13} /><p className="font-mono text-[11px] uppercase tracking-[0.2em]" style={{ color: AMBER }}>// SIGNAL SCORE</p></div>
+            <div className="flex items-center justify-around mb-6">
+              {([
+                { label: "BEFORE", value: p.signal_score_before, color: RED },
+                { label: "AFTER",  value: p.signal_score_after,  color: GREEN },
+              ] as { label: string; value: number | undefined; color: string }[]).map((s) => (
+                <div key={s.label} className="text-center">
+                  <p className="font-mono text-[10px] uppercase tracking-widest mb-2" style={{ color: MUTED }}>{s.label}</p>
+                  <p className="font-mono text-5xl font-black tabular-nums" style={{ color: s.color }}>{s.value ?? "—"}</p>
+                  <p className="font-mono text-[10px] mt-1" style={{ color: MUTED }}>/ 100</p>
+                </div>
+              ))}
+            </div>
+
+            {scoreDelta != null && (
+              <div className="text-center py-3" style={{ borderTop: LINE, borderBottom: LINE }}>
+                <p className="font-mono text-[10px] uppercase tracking-widest mb-1" style={{ color: MUTED }}>NET CHANGE</p>
+                <p className="font-mono text-2xl font-black tabular-nums" style={{ color: scoreDelta >= 0 ? GREEN : RED }}>
+                  {scoreDelta >= 0 ? "+" : ""}{scoreDelta} pts
+                </p>
+              </div>
+            )}
+
+            {axes.length > 0 && (
+              <div className="mt-5 space-y-3.5">
+                {axes.map((ax) => (
+                  <div key={ax.label}>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="font-mono text-[10px] uppercase tracking-wider" style={{ color: MUTED }}>{ax.label}</span>
+                      <span className="font-mono text-[10px] tabular-nums" style={{ color: ax.after >= ax.before ? GREEN : RED }}>
+                        {ax.before} → {ax.after}
+                      </span>
+                    </div>
+                    <div className="h-[3px] rounded-sm" style={{ background: `${MUTED}40` }}>
+                      <div className="h-full rounded-sm transition-all duration-700" style={{ width: `${ax.after}%`, background: ax.after >= ax.before ? GREEN : RED }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Channel table ── */}
+        {channels.length > 0 && (
+          <div style={{ borderBottom: LINE }}>
+            <div className="px-6 py-4" style={{ borderBottom: `1px solid ${MUTED}20` }}>
+              <div className="flex items-center gap-2"><V2SvgIcon name="bar" color={AMBER} size={13} /><p className="font-mono text-[11px] uppercase tracking-[0.2em]" style={{ color: AMBER }}>// CHANNEL DISTRIBUTION</p></div>
+            </div>
+            <div className="grid grid-cols-[1fr_80px_130px] px-6 py-2.5" style={{ background: PANEL, borderBottom: `1px solid ${MUTED}20` }}>
+              <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>Channel</span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-right" style={{ color: MUTED }}>Reach</span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-right" style={{ color: MUTED }}>Share</span>
+            </div>
+            {channels.map((ch, i) => {
+              const total = channels.reduce((s, c) => s + c.value, 0);
+              const share = Math.round((ch.value / total) * 100);
+              const maxVal = Math.max(...channels.map((c) => c.value));
+              return (
+                <div key={ch.label} className="grid grid-cols-[1fr_80px_130px] items-center px-6 py-3.5" style={{ borderBottom: i < channels.length - 1 ? `1px solid ${MUTED}15` : "none" }}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-1.5 h-5 rounded-sm shrink-0" style={{ background: AMBER, opacity: 0.35 + 0.65 * (ch.value / maxVal) }} />
+                    <span className="text-sm text-white font-medium">{ch.label}</span>
+                  </div>
+                  <span className="font-mono text-sm text-right tabular-nums" style={{ color: TEXT }}>{fmt(ch.value)}</span>
+                  <div className="flex items-center justify-end gap-2">
+                    <div className="flex-1 h-[3px] rounded-sm" style={{ background: `${MUTED}30`, maxWidth: "60px" }}>
+                      <div className="h-full rounded-sm" style={{ width: `${share}%`, background: AMBER }} />
+                    </div>
+                    <span className="font-mono text-xs tabular-nums shrink-0 w-8 text-right" style={{ color: AMBER }}>{share}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Engagement strip ── */}
+        <div className="grid grid-cols-2 md:grid-cols-4" style={{ borderBottom: LINE }}>
+          {([
+            { label: "LIKES",    value: p.likes,    icon: "heart" },
+            { label: "COMMENTS", value: p.comments, icon: "chat" },
+            { label: "SHARES",   value: p.shares,   icon: "share" },
+            { label: "CLICKS",   value: p.clicks,   icon: "cursor" },
+          ] as { label: string; value: number | undefined; icon: string }[]).map((e, i, arr) => (
+            <div key={e.label} className="px-6 py-5" style={{ borderRight: i < arr.length - 1 ? LINE : "none" }}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <V2SvgIcon name={e.icon} color={MUTED} size={11} />
+                <p className="font-mono text-[10px] uppercase tracking-[0.15em]" style={{ color: MUTED }}>{e.label}</p>
+              </div>
+              <p className="font-mono text-2xl font-bold tabular-nums" style={{ color: TEXT }}>{fmt(e.value)}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Content deployment ── */}
+        <div className="grid grid-cols-3 md:grid-cols-6" style={{ borderBottom: LINE }}>
+          {([
+            { label: "X/THREADS", value: p.x_threads,         icon: "updown" },
+            { label: "REDDIT",    value: p.reddit_posts,       icon: "globe" },
+            { label: "VIDEOS",    value: p.videos,             icon: "play" },
+            { label: "ARTICLES",  value: p.articles,           icon: "file" },
+            { label: "EMAILS",    value: p.emails,             icon: "mail" },
+            { label: "PUSH",      value: p.push_notifications, icon: "bell" },
+          ] as { label: string; value: number | undefined; icon: string }[]).map((a, i, arr) => (
+            <div key={a.label} className="px-4 py-4" style={{ borderRight: i < arr.length - 1 ? LINE : "none" }}>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <V2SvgIcon name={a.icon} color={(a.value || 0) > 0 ? AMBER : MUTED} size={10} />
+                <p className="font-mono text-[9px] uppercase tracking-widest" style={{ color: MUTED }}>{a.label}</p>
+              </div>
+              <p className="font-mono text-xl font-bold tabular-nums" style={{ color: (a.value || 0) > 0 ? AMBER : MUTED }}>{a.value || 0}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Top content ── */}
+        {(p.top_content?.length ?? 0) > 0 && (
+          <div style={{ borderBottom: LINE }}>
+            <div className="px-6 py-4" style={{ borderBottom: `1px solid ${MUTED}20` }}>
+              <div className="flex items-center gap-2"><V2SvgIcon name="star" color={AMBER} size={13} /><p className="font-mono text-[11px] uppercase tracking-[0.2em]" style={{ color: AMBER }}>// TOP CONTENT PERFORMANCE</p></div>
+            </div>
+            <div className="grid grid-cols-[32px_1fr_auto] gap-4 px-6 py-2.5" style={{ background: PANEL, borderBottom: `1px solid ${MUTED}20` }}>
+              <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>#</span>
+              <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>Content</span>
+              <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>Eng.</span>
+            </div>
+            {p.top_content!.slice(0, 5).map((item, i) => (
+              <div key={i} className="grid grid-cols-[32px_1fr_auto] gap-4 items-start px-6 py-4" style={{ borderBottom: i < Math.min(p.top_content!.length, 5) - 1 ? `1px solid ${MUTED}15` : "none" }}>
+                <span className="font-mono text-sm font-bold tabular-nums" style={{ color: MUTED }}>{String(i + 1).padStart(2, "0")}</span>
+                <div>
+                  <p className="text-sm font-semibold text-white">{item.platform}</p>
+                  <p className="font-mono text-xs mt-0.5" style={{ color: DIM }}>{item.why_it_worked}</p>
+                </div>
+                <span className="font-mono text-sm font-bold tabular-nums" style={{ color: GREEN }}>{fmt(item.engagement_count)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── PPC + Influencer ── */}
+        {(p.ppc_enabled || p.influencer_enabled) && (
+          <div className={p.ppc_enabled && p.influencer_enabled ? "grid md:grid-cols-2" : ""} style={{ borderBottom: LINE }}>
+            {p.ppc_enabled && (
+              <div className="px-6 py-6" style={{ borderRight: p.influencer_enabled ? LINE : "none" }}>
+                <div className="flex items-center gap-2 mb-4"><V2SvgIcon name="zap" color={AMBER} size={13} /><p className="font-mono text-[11px] uppercase tracking-[0.2em]" style={{ color: AMBER }}>// PPC PERFORMANCE</p></div>
+                {([
+                  { label: "IMPRESSIONS",  value: fmt(p.impressions) },
+                  { label: "CTR",          value: p.ctr != null ? `${p.ctr}%` : "—" },
+                  { label: "CPC",          value: p.cpc != null ? `$${p.cpc}` : "—" },
+                  { label: "VIDEO VIEWS",  value: fmt(p.video_views) },
+                ] as { label: string; value: string }[]).map((r, i, arr) => (
+                  <div key={r.label} className="flex justify-between items-center py-3" style={{ borderBottom: i < arr.length - 1 ? `1px solid ${MUTED}15` : "none" }}>
+                    <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>{r.label}</span>
+                    <span className="font-mono text-sm font-bold tabular-nums" style={{ color: TEXT }}>{r.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {p.influencer_enabled && (
+              <div className="px-6 py-6">
+                <div className="flex items-center gap-2 mb-4"><V2SvgIcon name="users" color={AMBER} size={13} /><p className="font-mono text-[11px] uppercase tracking-[0.2em]" style={{ color: AMBER }}>// INFLUENCER IMPACT</p></div>
+                {([
+                  { label: "ACTIVATED",  value: fmt(p.influencers_activated) },
+                  { label: "REACH",      value: fmt(p.influencer_reach) },
+                  { label: "ENGAGEMENT", value: fmt(p.influencer_engagement) },
+                ] as { label: string; value: string }[]).map((r, i, arr) => (
+                  <div key={r.label} className="flex justify-between items-center py-3" style={{ borderBottom: i < arr.length - 1 ? `1px solid ${MUTED}15` : "none" }}>
+                    <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>{r.label}</span>
+                    <span className="font-mono text-sm font-bold tabular-nums" style={{ color: TEXT }}>{r.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Market impact ── */}
+        {(p.market_impact_bullets?.length ?? 0) > 0 && (
+          <div style={{ borderBottom: LINE }}>
+            <div className="px-6 py-4" style={{ borderBottom: `1px solid ${MUTED}20` }}>
+              <div className="flex items-center gap-2"><V2SvgIcon name="globe" color={AMBER} size={13} /><p className="font-mono text-[11px] uppercase tracking-[0.2em]" style={{ color: AMBER }}>// MARKET IMPACT</p></div>
+            </div>
+            <div className="px-6 py-5 grid sm:grid-cols-2 gap-3">
+              {p.market_impact_bullets!.map((b, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <span className="font-mono text-sm shrink-0 mt-0.5" style={{ color: GREEN }}>+</span>
+                  <span className="text-sm leading-relaxed" style={{ color: TEXT }}>{b}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Recommendations ── */}
+        {(p.recommended_cta_text || (p.next_steps_bullets?.length ?? 0) > 0) && (
+          <div style={{ borderBottom: LINE }}>
+            <div className="px-6 py-4" style={{ borderBottom: `1px solid ${MUTED}20`, borderTop: `2px solid ${AMBER}` }}>
+              <div className="flex items-center gap-2"><V2SvgIcon name="lightbulb" color={AMBER} size={13} /><p className="font-mono text-[11px] uppercase tracking-[0.2em]" style={{ color: AMBER }}>// RECOMMENDED ACTION</p></div>
+            </div>
+            <div className="px-6 py-8">
+              {p.recommended_cta_text && (
+                <p className="text-2xl md:text-3xl font-black text-white leading-snug mb-8 max-w-3xl">
+                  {p.recommended_cta_text}
+                </p>
+              )}
+              {(p.next_steps_bullets?.length ?? 0) > 0 && (
+                <div>
+                  {p.next_steps_bullets!.map((step, i, arr) => (
+                    <div key={i} className="flex items-start gap-4 py-3.5" style={{ borderBottom: i < arr.length - 1 ? `1px solid ${MUTED}15` : "none" }}>
+                      <span className="font-mono text-xs shrink-0 tabular-nums w-6" style={{ color: AMBER }}>
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <span className="text-sm leading-relaxed" style={{ color: TEXT }}>{step}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Footer ── */}
+        <div className="px-6 py-4 flex items-center justify-between">
+          <span className="font-mono text-[11px]" style={{ color: MUTED }}>{companyName}{ticker ? ` · ${ticker}` : ""} · EDM Signal Report</span>
+          <span className="font-mono text-[11px]" style={{ color: MUTED }}>{p.prepared_by || "EDM Media"}</span>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════ REPORT 3 – EDITORIAL LIGHT ═══════════════════ */
+
+function V3SectionHeader({ label, title }: { label: string; title: string }) {
+  return (
+    <div className="flex items-baseline gap-3 mb-6 pb-4 border-b border-[#E2E8F0]">
+      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#94A3B8]">{label}</span>
+      <h2 className="text-lg font-bold text-[#0F172A] tracking-tight">{title}</h2>
+    </div>
+  );
+}
+
+function V3Pill({
+  children,
+  color = "blue",
+}: {
+  children: React.ReactNode;
+  color?: "blue" | "green" | "red" | "gray";
+}) {
+  const map: Record<string, string> = {
+    blue: "bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]",
+    green: "bg-[#F0FDF4] text-[#15803D] border-[#BBF7D0]",
+    red: "bg-[#FFF1F2] text-[#BE123C] border-[#FECDD3]",
+    gray: "bg-[#F8FAFC] text-[#475569] border-[#E2E8F0]",
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${map[color]}`}>
+      {children}
+    </span>
+  );
+}
+
+function ReportDashboardV3({
+  companyName,
+  ticker,
+  campaignName,
+  campaignStart,
+  campaignEnd,
+  payload: p,
+  isDraft,
+}: {
+  companyName: string;
+  ticker?: string | null;
+  campaignName: string;
+  campaignStart: string | null;
+  campaignEnd: string | null;
+  payload: ReportPayload;
+  isDraft?: boolean;
+}) {
+  const assetTotal =
+    (p.x_threads || 0) + (p.reddit_posts || 0) + (p.videos || 0) +
+    (p.articles || 0) + (p.emails || 0) + (p.push_notifications || 0);
+
+  const scoreDelta =
+    p.signal_score_after != null && p.signal_score_before != null
+      ? p.signal_score_after - p.signal_score_before
+      : null;
+
+  const kpis = [
+    {
+      label: "Total Reach",
+      value: p.total_reach ? Number(p.total_reach).toLocaleString() : "—",
+      delta: null,
+      note: "across all channels",
+    },
+    {
+      label: "Engagements",
+      value: p.total_engagements ? Number(p.total_engagements).toLocaleString() : "—",
+      delta: null,
+      note: "likes, shares, comments",
+    },
+    {
+      label: "Signal Score",
+      value: p.signal_score_after != null ? String(p.signal_score_after) : "—",
+      delta: scoreDelta,
+      note: `was ${p.signal_score_before ?? "—"}`,
+    },
+    {
+      label: "Clicks",
+      value: p.clicks ? Number(p.clicks).toLocaleString() : "—",
+      delta: null,
+      note: "tracked clicks",
+    },
+    {
+      label: "Assets Deployed",
+      value: String(assetTotal),
+      delta: null,
+      note: "content pieces",
+    },
+  ];
+
+  const channelData = [
+    { label: "X / Threads", value: p.x_threads || 0, color: "#0F172A" },
+    { label: "Reddit", value: p.reddit_posts || 0, color: "#2563EB" },
+    { label: "Videos", value: p.videos || 0, color: "#7C3AED" },
+    { label: "Articles", value: p.articles || 0, color: "#0891B2" },
+    { label: "Emails", value: p.emails || 0, color: "#059669" },
+    { label: "Push", value: p.push_notifications || 0, color: "#D97706" },
+  ].filter((c) => c.value > 0);
+
+  const channelMax = Math.max(...channelData.map((c) => c.value), 1);
+
+  const axes = [
+    { label: "Execution", value: p.execution_after },
+    { label: "Clarity", value: p.clarity_after },
+    { label: "Distribution", value: p.distribution_after },
+    { label: "Engagement", value: p.engagement_axis_after },
+  ].filter((a) => a.value != null) as { label: string; value: number }[];
+
+  return (
+    <div
+      className="min-h-screen font-[family-name:var(--font-inter)]"
+      style={{ background: "#F8FAFC", color: "#0F172A" }}
+    >
+      {isDraft && (
+        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center">
+          <span className="rotate-[-25deg] text-[10rem] font-extrabold tracking-[0.3em] text-[#0F172A]/[0.04] select-none">
+            DRAFT
+          </span>
+        </div>
+      )}
+
+      {/* ── Top rule ── */}
+      <div className="h-1 w-full bg-[#2563EB]" />
+
+      <div className="max-w-[1080px] mx-auto px-5 md:px-10 py-10 md:py-14 space-y-14">
+
+        {/* ══════════ HEADER ══════════ */}
+        <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#2563EB] mb-2">
+              EDM Signal Report
+            </p>
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-[#0F172A] leading-none">
+              {campaignName || "Campaign Performance"}
+            </h1>
+            <p className="mt-2 text-sm text-[#64748B]">
+              {companyName}{ticker ? ` (${ticker})` : ""}
+              {campaignStart && campaignEnd ? ` · ${campaignStart} – ${campaignEnd}` : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {isDraft && <V3Pill color="red">Draft</V3Pill>}
+            <V3Pill color="gray">{campaignStart || "—"} → {campaignEnd || "—"}</V3Pill>
+          </div>
+        </header>
+
+        {/* ══════════ 01 OVERVIEW ══════════ */}
+        <section>
+          <V3SectionHeader label="01" title="Overview" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {kpis.map((k) => (
+              <div
+                key={k.label}
+                className="bg-white rounded-2xl p-5 border border-[#E2E8F0] hover:shadow-md transition-shadow"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#94A3B8] mb-3">{k.label}</p>
+                <p className="text-3xl font-black text-[#0F172A] tabular-nums leading-none">{k.value}</p>
+                {k.delta != null && (
+                  <p
+                    className={`mt-1.5 text-xs font-bold ${k.delta >= 0 ? "text-[#15803D]" : "text-[#BE123C]"}`}
+                  >
+                    {k.delta >= 0 ? "↑" : "↓"} {Math.abs(k.delta)} pts
+                  </p>
+                )}
+                {k.note && <p className="mt-1 text-[11px] text-[#94A3B8]">{k.note}</p>}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ══════════ 02 PERFORMANCE ══════════ */}
+        {channelData.length > 0 && (
+          <section>
+            <V3SectionHeader label="02" title="Channel Distribution" />
+            <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
+              {channelData.map((ch, i) => (
+                <div
+                  key={ch.label}
+                  className={`flex items-center gap-4 px-6 py-4 ${i !== channelData.length - 1 ? "border-b border-[#F1F5F9]" : ""} hover:bg-[#F8FAFC] transition-colors`}
+                >
+                  <p className="w-28 text-xs font-semibold text-[#475569] shrink-0">{ch.label}</p>
+                  <div className="flex-1 h-2 bg-[#F1F5F9] rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        width: `${Math.round((ch.value / channelMax) * 100)}%`,
+                        background: ch.color,
+                      }}
+                    />
+                  </div>
+                  <p className="w-8 text-right text-xs font-bold text-[#0F172A] tabular-nums shrink-0">{ch.value}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ══════════ 03 KEY INSIGHTS ══════════ */}
+        {(() => {
+          const chips: { icon: string; text: string; color: "green" | "red" | "blue" }[] = [];
+          if (scoreDelta != null && Math.abs(scoreDelta) >= 5)
+            chips.push({ icon: scoreDelta >= 0 ? "↑" : "↓", text: `Signal score ${scoreDelta >= 0 ? "improved" : "dropped"} by ${Math.abs(scoreDelta)} points`, color: scoreDelta >= 0 ? "green" : "red" });
+          if (p.x_threads && p.x_threads > (p.reddit_posts || 0) && p.x_threads > (p.articles || 0))
+            chips.push({ icon: "✕", text: "X / Threads is your top distribution channel", color: "blue" });
+          if (p.emails != null && p.emails > 0 && (p.total_reach || 0) > 0 && p.emails / (p.total_reach || 1) < 0.05)
+            chips.push({ icon: "✉", text: "Email reach is below 5% — consider scaling newsletters", color: "red" });
+          if (p.ppc_enabled && (p.ctr || 0) > 2)
+            chips.push({ icon: "⚡", text: `Strong PPC click-through rate of ${p.ctr}%`, color: "green" });
+          if (assetTotal >= 20)
+            chips.push({ icon: "📦", text: `High content volume: ${assetTotal} assets deployed`, color: "blue" });
+          return chips.length > 0 ? (
+            <section>
+              <V3SectionHeader label="03" title="Key Insights" />
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {chips.map((c, i) => (
+                  <div
+                    key={i}
+                    className="bg-white rounded-2xl border border-[#E2E8F0] p-5 flex flex-col gap-3 hover:shadow-md transition-shadow"
+                  >
+                    <span
+                      className={`text-lg leading-none ${c.color === "green" ? "text-[#15803D]" : c.color === "red" ? "text-[#BE123C]" : "text-[#2563EB]"}`}
+                    >
+                      {c.icon}
+                    </span>
+                    <p className="text-sm font-semibold text-[#0F172A] leading-snug">{c.text}</p>
+                    <V3Pill color={c.color === "green" ? "green" : c.color === "red" ? "red" : "blue"}>
+                      {c.color === "green" ? "Positive" : c.color === "red" ? "Attention" : "Insight"}
+                    </V3Pill>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null;
+        })()}
+
+        {/* ══════════ 04 TOP CONTENT ══════════ */}
+        {(p.top_content?.length ?? 0) > 0 && (
+          <section>
+            <V3SectionHeader label="04" title="Content Performance" />
+            <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
+              <div className="grid grid-cols-[auto_1fr_auto] text-[11px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] px-6 py-3 border-b border-[#F1F5F9]">
+                <span className="w-6 text-center">#</span>
+                <span className="pl-4">Content</span>
+                <span>Engagement</span>
+              </div>
+              {p.top_content!.slice(0, 5).map((item, i) => (
+                <div
+                  key={i}
+                  className={`grid grid-cols-[auto_1fr_auto] items-center px-6 py-4 ${i !== Math.min((p.top_content?.length ?? 0), 5) - 1 ? "border-b border-[#F1F5F9]" : ""} hover:bg-[#F8FAFC] transition-colors`}
+                >
+                  <span className="w-6 text-center text-[11px] font-bold text-[#94A3B8] tabular-nums">{i + 1}</span>
+                  <div className="pl-4">
+                    <p className="text-sm text-[#0F172A] font-medium line-clamp-1">{item.platform}</p>
+                    {item.why_it_worked && <p className="text-[11px] text-[#94A3B8] line-clamp-1">{item.why_it_worked}</p>}
+                  </div>
+                  <V3Pill color="blue">{item.engagement_count > 0 ? item.engagement_count.toLocaleString() : "Top"}</V3Pill>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ══════════ 05 CAMPAIGN AXES ══════════ */}
+        {axes.length > 0 && (
+          <section>
+            <V3SectionHeader label="05" title="Campaign Breakdown" />
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {axes.map((ax) => (
+                <div key={ax.label} className="bg-white rounded-2xl border border-[#E2E8F0] p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold text-[#475569]">{ax.label}</p>
+                    <p className="text-xs font-black text-[#0F172A] tabular-nums">{ax.value}/10</p>
+                  </div>
+                  <div className="h-1.5 bg-[#F1F5F9] rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#2563EB] transition-all duration-700"
+                      style={{ width: `${(ax.value / 10) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ══════════ 06 RESULTS & IMPACT ══════════ */}
+        {(p.ppc_enabled || p.influencer_enabled || (p.market_impact_bullets?.length ?? 0) > 0) && (
+          <section>
+            <V3SectionHeader label="06" title="Results & Impact" />
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {p.ppc_enabled && (
+                <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 space-y-3">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">PPC Performance</p>
+                  {[
+                    { label: "Impressions", value: p.impressions?.toLocaleString() },
+                    { label: "CTR", value: p.ctr != null ? `${p.ctr}%` : null },
+                    { label: "CPC", value: p.cpc != null ? `$${p.cpc}` : null },
+                    { label: "Video Views", value: p.video_views?.toLocaleString() },
+                  ].filter((r) => r.value).map((row) => (
+                    <div key={row.label} className="flex justify-between text-sm border-b border-[#F1F5F9] pb-2 last:border-0 last:pb-0">
+                      <span className="text-[#475569]">{row.label}</span>
+                      <span className="font-bold text-[#0F172A] tabular-nums">{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {p.influencer_enabled && (
+                <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 space-y-3">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">Influencer Impact</p>
+                  {[
+                    { label: "Activated", value: p.influencers_activated?.toLocaleString() },
+                    { label: "Reach", value: p.influencer_reach?.toLocaleString() },
+                    { label: "Engagement", value: p.influencer_engagement?.toLocaleString() },
+                  ].filter((r) => r.value).map((row) => (
+                    <div key={row.label} className="flex justify-between text-sm border-b border-[#F1F5F9] pb-2 last:border-0 last:pb-0">
+                      <span className="text-[#475569]">{row.label}</span>
+                      <span className="font-bold text-[#0F172A] tabular-nums">{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(p.market_impact_bullets?.length ?? 0) > 0 && (
+                <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#94A3B8] mb-3">Market Impact</p>
+                  <ul className="space-y-2">
+                    {p.market_impact_bullets!.map((b, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-[#0F172A]">
+                        <span className="mt-1 w-1 h-1 rounded-full bg-[#2563EB] shrink-0" />
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ══════════ 07 RECOMMENDATIONS ══════════ */}
+        {(p.recommended_cta_text || (p.next_steps_bullets?.length ?? 0) > 0) && (
+          <section>
+            <V3SectionHeader label="07" title="Recommendations" />
+            <div className="rounded-2xl overflow-hidden bg-[#EFF6FF] border border-[#BFDBFE]">
+              <div className="px-8 py-8 md:py-10">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#2563EB] mb-3">Next Steps</p>
+                {p.recommended_cta_text && (
+                  <p className="text-xl md:text-2xl font-bold text-[#1E3A5F] leading-snug mb-6 max-w-2xl">
+                    {p.recommended_cta_text}
+                  </p>
+                )}
+                {(p.next_steps_bullets?.length ?? 0) > 0 && (
+                  <ol className="space-y-3">
+                    {p.next_steps_bullets!.map((step, i) => (
+                      <li key={i} className="flex items-start gap-3 text-sm text-[#334155]">
+                        <span className="mt-px w-5 h-5 rounded-full bg-[#DBEAFE] flex items-center justify-center text-[11px] font-bold text-[#2563EB] shrink-0 tabular-nums">
+                          {i + 1}
+                        </span>
+                        {step}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+              <div className="h-px bg-[#BFDBFE]" />
+              <div className="px-8 py-4">
+                <p className="text-[11px] text-[#64748B]">
+                  {companyName}{ticker ? ` (${ticker})` : ""} · EDM Signal Report · {p.prepared_by || "EDM Media"}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Footer */}
+        <p className="text-[11px] text-[#CBD5E1] text-center pb-4 tracking-wider">
+          {companyName}{ticker ? ` (${ticker})` : ""} · EDM Signal Report · {p.prepared_by || "EDM Media"}
+        </p>
+
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════ MAIN COMPONENT ═══════════════════════════════ */
 
 export function ReportViewer({
@@ -419,25 +1505,21 @@ export function ReportViewer({
 }) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const allSlides = useMemo(() => ["dashboard", "extended"] as const, []);
 
-  const scrollToSlide = useCallback(
-    (index: number) => {
-      const target = Math.max(0, Math.min(index, allSlides.length - 1));
-      setCurrentSlide(target);
-      document.getElementById(allSlides[target])?.scrollIntoView({ behavior: "smooth", block: "start" });
-    },
-    [allSlides]
-  );
+  const switchView = useCallback((index: number) => {
+    const target = Math.max(0, Math.min(index, 2));
+    setCurrentSlide(target);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
-  const goNext = useCallback(() => scrollToSlide(currentSlide + 1), [currentSlide, scrollToSlide]);
-  const goPrev = useCallback(() => scrollToSlide(currentSlide - 1), [currentSlide, scrollToSlide]);
+  const goNext = useCallback(() => switchView(currentSlide + 1), [currentSlide, switchView]);
+  const goPrev = useCallback(() => switchView(currentSlide - 1), [currentSlide, switchView]);
 
   useEffect(() => {
     if (pdfMode) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") goNext();
-      if (e.key === "ArrowLeft") goPrev();
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") goNext();
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") goPrev();
       if (e.key === "Escape") setDropdownOpen(false);
     };
     window.addEventListener("keydown", onKey);
@@ -526,7 +1608,7 @@ export function ReportViewer({
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF]" aria-hidden />
               <span className="font-semibold tracking-wide">
-                {currentSlide === 0 ? "Report 1" : "Report 2"}
+                {currentSlide === 0 ? "Report 1" : currentSlide === 1 ? "Report 2" : "Report 3"}
               </span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -550,12 +1632,13 @@ export function ReportViewer({
                 {[
                   { label: "Report 1", index: 0 },
                   { label: "Report 2", index: 1 },
+                  { label: "Report 3", index: 2 },
                 ].map(({ label, index }) => (
                   <button
                     key={index}
                     type="button"
                     onClick={() => {
-                      scrollToSlide(index);
+                      switchView(index);
                       setDropdownOpen(false);
                     }}
                     className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/[0.06] ${
@@ -584,7 +1667,7 @@ export function ReportViewer({
             <button type="button" onClick={goPrev} className="px-2 py-1 text-[#8B9AAF] hover:text-white transition-colors rounded-lg hover:bg-white/5">
               ← Prev
             </button>
-            <span className="text-[#2A3442] px-1 tabular-nums">{currentSlide + 1} / {allSlides.length}</span>
+            <span className="text-[#2A3442] px-1 tabular-nums">{currentSlide + 1} / 3</span>
             <button type="button" onClick={goNext} className="px-2 py-1 text-[#8B9AAF] hover:text-white transition-colors rounded-lg hover:bg-white/5">
               Next →
             </button>
@@ -618,7 +1701,9 @@ export function ReportViewer({
           EDM Signal Report
         </div>
 
-        {/* ════════════════════ PAGE 1 ════════════════════ */}
+        {/* ════════════════════ CONDITIONAL CONTENT ════════════════════ */}
+        {currentSlide === 0 ? (
+        <>
         <div id="dashboard">
           <Slide className="justify-start py-8 md:py-10">
             <div className="max-w-6xl mx-auto w-full space-y-7">
@@ -913,6 +1998,28 @@ export function ReportViewer({
             </div>
           </Slide>
         </div>
+        </>
+        ) : currentSlide === 1 ? (
+          <ReportDashboardV2
+            companyName={companyName}
+            ticker={ticker}
+            campaignName={campaignName}
+            campaignStart={campaignStart}
+            campaignEnd={campaignEnd}
+            payload={p}
+            isDraft={isDraft}
+          />
+        ) : (
+          <ReportDashboardV3
+            companyName={companyName}
+            ticker={ticker}
+            campaignName={campaignName}
+            campaignStart={campaignStart}
+            campaignEnd={campaignEnd}
+            payload={p}
+            isDraft={isDraft}
+          />
+        )}
 
       </div>
     </div>
