@@ -3,15 +3,27 @@ import { nextCookies } from "better-auth/next-js";
 import { LibsqlDialect } from "@libsql/kysely-libsql";
 
 function getBaseURL(): string {
-  // BETTER_AUTH_URL is the priority — must have https://
-  if (process.env.BETTER_AUTH_URL) {
-    const url = process.env.BETTER_AUTH_URL;
-    return url.startsWith("http") ? url : `https://${url}`;
+  const betterAuthURL = process.env.BETTER_AUTH_URL?.trim();
+  const vercelURL = process.env.VERCEL_URL?.trim();
+
+  // Prefer explicit BETTER_AUTH_URL unless it's localhost in hosted envs.
+  if (betterAuthURL) {
+    const isLocalhost = /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?\/?$/i.test(
+      betterAuthURL
+    );
+
+    if (!isLocalhost || !vercelURL) {
+      return betterAuthURL.startsWith("http")
+        ? betterAuthURL
+        : `https://${betterAuthURL}`;
+    }
   }
-  // Vercel auto-sets VERCEL_URL without protocol
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
+
+  // Vercel auto-sets VERCEL_URL without protocol.
+  if (vercelURL) {
+    return `https://${vercelURL}`;
   }
+
   return "http://localhost:3000";
 }
 

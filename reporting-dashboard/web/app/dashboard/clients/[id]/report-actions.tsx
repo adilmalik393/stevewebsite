@@ -13,11 +13,19 @@ export function PublishButton({
   reportId: string;
   status: string;
 }) {
+  async function copyPublishedLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      alert(`Published! Link copied:\n${url}`);
+    } catch {
+      window.prompt("Published! Copy link manually:", url);
+    }
+  }
+
   async function handlePublish() {
     const newSlug = await publish(reportId);
     const url = `${window.location.origin}/r/${newSlug}`;
-    await navigator.clipboard.writeText(url);
-    alert(`Published! Link copied:\n${url}`);
+    await copyPublishedLink(url);
     window.location.reload();
   }
 

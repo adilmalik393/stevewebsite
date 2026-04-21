@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useFormStatus } from "react-dom";
 import { addReport, removeReport } from "../../actions";
 import { DuplicateButton, PublishButton } from "./report-actions";
 import { IconDelete, IconView, iconClass } from "./report-icons";
@@ -16,6 +17,20 @@ export type ReportListItem = {
 };
 
 type StatusFilter = "all" | "draft" | "published";
+
+function CreateReportSubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="px-4 py-2 bg-[#00E5FF] text-[#0B0F14] font-semibold rounded-lg text-sm hover:bg-[#00CCE5] disabled:opacity-60 disabled:cursor-not-allowed transition"
+    >
+      {pending ? "Creating..." : "Create report"}
+    </button>
+  );
+}
 
 export function ClientReportsSection({
   clientId,
@@ -259,12 +274,7 @@ export function ClientReportsSection({
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#00E5FF] text-[#0B0F14] font-semibold rounded-lg text-sm hover:bg-[#00CCE5] transition"
-                >
-                  Create report
-                </button>
+                <CreateReportSubmitButton />
                 <button
                   type="button"
                   onClick={closeCreate}

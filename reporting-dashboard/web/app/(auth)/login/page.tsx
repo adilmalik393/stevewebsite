@@ -17,18 +17,25 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const { error: authError } = await authClient.signIn.email({
-      email,
-      password,
-    });
+    try {
+      const { error: authError } = await authClient.signIn.email({
+        email,
+        password,
+      });
 
-    if (authError) {
-      setError(authError.message || "Login failed");
+      if (authError) {
+        setError(authError.message || "Login failed");
+        return;
+      }
+
+      router.push("/dashboard");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Sign in failed. Please try again.";
+      setError(message);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    router.push("/dashboard");
   }
 
   return (
