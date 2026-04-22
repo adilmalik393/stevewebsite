@@ -165,8 +165,20 @@ async function launchBrowserWithFallback(): Promise<Browser> {
   return launchBrowserLocal();
 }
 
+function parsePdfViewParam(request: Request): number {
+  try {
+    const raw = new URL(request.url).searchParams.get("view");
+    if (raw == null || raw === "") return 0;
+    const n = Number.parseInt(raw, 10);
+    if (Number.isNaN(n)) return 0;
+    return Math.max(0, Math.min(3, n));
+  } catch {
+    return 0;
+  }
+}
+
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await context.params;
@@ -175,9 +187,10 @@ export async function GET(
     return NextResponse.json({ error: "Report not found or not published" }, { status: 404 });
   }
 
+  const pdfView = parsePdfViewParam(request);
   const filename = reportPdfFilename(report.ticker, report.campaign_start);
   const origin = baseUrlForPdf();
-  const url = `${origin}/r/${encodeURIComponent(slug)}?pdf=1`;
+  const url = `${origin}/r/${encodeURIComponent(slug)}?pdf=1&view=${pdfView}`;
 
   let browser;
   try {
