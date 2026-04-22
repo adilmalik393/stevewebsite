@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { flushSync } from "react-dom";
 import type { ReportPayload } from "@/lib/db";
 
 function fmt(n: number | undefined): string {
@@ -398,9 +399,20 @@ function AssetBars({ payload: p, total }: { payload: ReportPayload; total: numbe
   );
 }
 
-function Slide({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function Slide({
+  children,
+  className = "",
+  id,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  id?: string;
+}) {
   return (
-    <div className={`pdf-slide min-h-screen flex flex-col justify-center px-5 md:px-12 py-10 md:py-14 ${className}`}>
+    <div
+      id={id}
+      className={`pdf-slide min-h-screen flex flex-col justify-center px-5 md:px-12 py-10 md:py-14 ${className}`}
+    >
       {children}
     </div>
   );
@@ -1714,7 +1726,474 @@ function ReportDashboardV3({
   );
 }
 
+/* ═══════════════════════════ REPORT 4 – PPT SLIDE DECK ═════════════════════ */
+
+/** Small white wordmark — matches “logo top-left @ 90% opacity” (no raster asset in repo). */
+function EdmLogoMark({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`flex items-baseline gap-1.5 shrink-0 opacity-90 select-none ${className}`}
+      aria-label="EDM Signal"
+    >
+      <span className="font-[family-name:var(--font-montserrat)] text-lg sm:text-xl font-black text-white tracking-tight leading-none">
+        EDM
+      </span>
+      <span className="font-[family-name:var(--font-montserrat)] text-[9px] sm:text-[10px] font-bold text-white/80 uppercase tracking-[0.22em] pb-0.5">
+        Signal
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Master slide (per EDM Signal Report System): logo top-left, slide title top-right,
+ * content center, footer “EDM Signal Report” bottom-right (#A0AEC0). No outer card border.
+ */
+function V4DeckSlide({
+  deckIndex,
+  slide,
+  total,
+  sectionLabel,
+  title,
+  children,
+}: {
+  /** Zero-based index for scroll targets (`report-v4-slide-{n}`). */
+  deckIndex: number;
+  slide: number;
+  total: number;
+  sectionLabel: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Slide
+      id={`report-v4-slide-${deckIndex}`}
+      className="justify-center py-8 md:py-12 scroll-mt-24"
+    >
+      <div className="relative max-w-6xl mx-auto w-full px-5 md:px-12 flex flex-col min-h-[min(100dvh,860px)] md:min-h-[720px]">
+        <header className="flex flex-row items-start justify-between gap-6 shrink-0 pb-6 md:pb-8 border-b border-white/[0.06]">
+          <div className="flex flex-col gap-2 shrink-0">
+            <EdmLogoMark />
+            <span className="text-[10px] font-mono tabular-nums" style={{ color: "#A0AEC0" }}>
+              {slide} / {total}
+            </span>
+          </div>
+          <div className="text-right min-w-0 max-w-[min(100%,28rem)] pl-4">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight leading-snug">
+              {title}
+            </h2>
+            <p className="mt-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.18em] text-[#64748B]">
+              {sectionLabel}
+            </p>
+          </div>
+        </header>
+
+        <main className="flex-1 flex flex-col justify-center py-6 md:py-10 min-h-0">{children}</main>
+
+        <footer className="mt-auto flex flex-row items-center justify-end pt-5 md:pt-6 border-t border-white/[0.06] shrink-0">
+          <span className="text-[11px] font-medium tracking-wide" style={{ color: "#A0AEC0" }}>
+            EDM Signal · Client campaign report
+          </span>
+        </footer>
+      </div>
+    </Slide>
+  );
+}
+
+function ReportDashboardV4({
+  companyName,
+  ticker,
+  campaignName,
+  campaignStart,
+  campaignEnd,
+  payload: p,
+  /** When set (interactive viewer), only this slide mounts — full-screen step like the signal deck. Omit for PDF / browser print (all slides). */
+  interactiveSlideIndex,
+}: {
+  companyName: string;
+  ticker?: string | null;
+  campaignName: string;
+  campaignStart: string | null;
+  campaignEnd: string | null;
+  payload: ReportPayload;
+  interactiveSlideIndex?: number;
+}) {
+  const showSlide = (deckIndex: number) =>
+    interactiveSlideIndex === undefined || interactiveSlideIndex === deckIndex;
+
+  const assetTotal =
+    (p.x_threads || 0) + (p.reddit_posts || 0) + (p.videos || 0) +
+    (p.articles || 0) + (p.emails || 0) + (p.push_notifications || 0);
+
+  const scoreDelta =
+    p.signal_score_after != null && p.signal_score_before != null
+      ? p.signal_score_after - p.signal_score_before
+      : null;
+
+  const hasAmp = !!(p.ppc_enabled || p.influencer_enabled);
+  /** Cover + deck; Section 3 is two slides (factor scores, then score overview) per client template. */
+  const totalSlides = 11 + (hasAmp ? 1 : 0);
+
+  const prBullets = p.pr_score_bullets || [];
+  const nextSteps = p.next_steps_bullets || [];
+
+  return (
+    <div id="report-v4-template-order" className="report-v4-deck min-h-[100dvh]">
+      {/* ── Slide 1: Title (cover) — same master grid, no outer card frame ── */}
+      {showSlide(0) ? (
+      <Slide id="report-v4-slide-0" className="justify-center py-8 md:py-12 scroll-mt-24">
+        <div className="relative max-w-6xl mx-auto w-full px-5 md:px-12 flex flex-col min-h-[min(100dvh,860px)] md:min-h-[720px]">
+          <header className="flex flex-row items-start justify-between gap-6 shrink-0 pb-6 md:pb-8 border-b border-white/[0.06]">
+            <div className="flex flex-col gap-2 shrink-0">
+              <EdmLogoMark />
+              <span className="text-[10px] font-mono tabular-nums" style={{ color: "#A0AEC0" }}>
+                1 / {totalSlides}
+              </span>
+            </div>
+            <div className="text-right min-w-0 max-w-[min(100%,20rem)] pl-4">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight leading-snug">
+                Client campaign report
+              </h2>
+              <p className="mt-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.18em] text-[#64748B]">
+                Slide 01 · Cover
+              </p>
+            </div>
+          </header>
+
+          <main className="relative flex-1 flex flex-col justify-center py-8 md:py-12 min-h-0">
+            <div
+              className="pointer-events-none absolute inset-0 -z-10 opacity-90"
+              // style={{
+              //   background:
+              //     "radial-gradient(ellipse 80% 55% at 15% 20%, rgba(0,229,255,0.10) 0%, transparent 50%)," +
+              //     "radial-gradient(ellipse 60% 50% at 95% 30%, rgba(123,97,255,0.12) 0%, transparent 45%)",
+              // }}
+              aria-hidden
+            />
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold font-[family-name:var(--font-montserrat)] tracking-tight leading-[1.08]">
+              <span className="bg-gradient-to-r from-white via-[#E2E8F0] to-[#94A3B8] bg-clip-text text-transparent">
+                Client campaign
+              </span>
+              <br />
+              <span className="bg-gradient-to-r from-[#00E5FF] via-[#7B61FF] to-[#00FF9D] bg-clip-text text-transparent">
+                report
+              </span>
+            </h1>
+            <p className="mt-6 text-lg md:text-xl text-[#8B9AAF] font-medium max-w-2xl">
+              {companyName}
+              {ticker ? (
+                <span className="ml-2 inline-flex items-center rounded-lg bg-[#7B61FF]/15 text-[#C4B5FD] text-sm font-semibold px-2.5 py-0.5 align-middle">
+                  ${ticker}
+                </span>
+              ) : null}
+            </p>
+            {campaignName ? <p className="mt-2 text-sm text-[#64748B]">{campaignName}</p> : null}
+            <div className="mt-10 flex flex-wrap items-end gap-8 md:gap-12">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-[#64748B] mb-1">Campaign window</p>
+                <p className="text-sm md:text-base text-[#C5D0E0] tabular-nums">
+                  {campaignStart || "—"}
+                  {campaignEnd ? ` — ${campaignEnd}` : ""}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-[#64748B] mb-1">Prepared by</p>
+                <p className="text-sm md:text-base text-white font-semibold">{p.prepared_by || "EDM Media"}</p>
+              </div>
+            </div>
+          </main>
+
+          <footer className="mt-auto flex flex-row items-center justify-end pt-5 md:pt-6 border-t border-white/[0.06] shrink-0">
+            <span className="text-[11px] font-medium tracking-wide" style={{ color: "#A0AEC0" }}>
+              EDM Signal · Client campaign report
+            </span>
+          </footer>
+        </div>
+      </Slide>
+      ) : null}
+
+      {showSlide(1) ? (
+      <V4DeckSlide
+        deckIndex={1}
+        slide={2}
+        total={totalSlides}
+        sectionLabel="Section 1 · Executive summary"
+        title="Executive Summary"
+      >
+        <p className="text-sm text-[#8B9AAF] max-w-2xl mb-6 leading-relaxed">
+          Lead with the outcome, what changed, and why the campaign mattered now — reach, signal movement, and content volume.
+        </p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 flex-1 content-start">
+          <KpiCard label="Total Reach" value={fmt(p.total_reach)} hero />
+          <KpiCard label="Engagements" value={fmt(p.total_engagements)} color="#7B61FF" hero />
+          <KpiCard label="Signal Score" value={`${fmt(p.signal_score_before)} → ${fmt(p.signal_score_after)}`} color="#00FF9D" compact />
+          <KpiCard label="Assets Deployed" value={fmt(assetTotal)} compact />
+        </div>
+      </V4DeckSlide>
+      ) : null}
+
+      {showSlide(2) ? (
+      <V4DeckSlide
+        deckIndex={2}
+        slide={3}
+        total={totalSlides}
+        sectionLabel="Section 2 · Campaign overview"
+        title="Campaign Overview"
+      >
+        <div className="grid md:grid-cols-2 gap-4 md:gap-5 flex-1 content-start">
+          <div className="rounded-2xl bg-white/[0.04] p-5 md:p-6">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7B61FF] mb-3">Campaign thesis</p>
+            <p className="text-base md:text-lg text-[#E2E8F0] leading-relaxed">{p.campaign_type || "—"}</p>
+          </div>
+          <div className="rounded-2xl bg-white/[0.04] p-5 md:p-6">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#00FF9D] mb-3">Primary signal shift</p>
+            <p className="text-base md:text-lg text-[#E2E8F0] leading-relaxed">{p.algo_sentiment_bias || "—"}</p>
+          </div>
+        </div>
+      </V4DeckSlide>
+      ) : null}
+
+      {showSlide(3) ? (
+      <V4DeckSlide
+        deckIndex={3}
+        slide={4}
+        total={totalSlides}
+        sectionLabel="Section 3 · Signal score analysis"
+        title="Factor scores"
+      >
+        <p className="text-sm text-[#8B9AAF] max-w-2xl mb-5 leading-relaxed">
+          How execution, clarity, distribution, and engagement moved across the campaign — before vs after.
+        </p>
+        <div className="rounded-2xl bg-white/[0.04] p-4 md:p-5 max-w-3xl flex-1">
+          <ProgressBar label="Execution" before={p.execution_before || 0} after={p.execution_after || 0} />
+          <ProgressBar label="Clarity" before={p.clarity_before || 0} after={p.clarity_after || 0} />
+          <ProgressBar label="Distribution" before={p.distribution_before || 0} after={p.distribution_after || 0} />
+          <ProgressBar label="Engagement" before={p.engagement_axis_before || 0} after={p.engagement_axis_after || 0} />
+        </div>
+      </V4DeckSlide>
+      ) : null}
+
+      {showSlide(4) ? (
+      <V4DeckSlide
+        deckIndex={4}
+        slide={5}
+        total={totalSlides}
+        sectionLabel="Section 3 · Signal score analysis"
+        title="Signal score overview"
+      >
+        <p className="text-sm text-[#8B9AAF] max-w-2xl mb-5 leading-relaxed">
+          Composite signal score before and after the campaign window.
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 py-4 flex-1">
+          <ScoreCircle value={p.signal_score_before} label="Before EDM Signal" color="#FF6B6B" />
+          <div className="hidden sm:flex flex-col items-center gap-2 px-2">
+            <div className="h-px w-12 md:w-20 bg-gradient-to-r from-[#FF6B6B] to-[#00FF9D]" aria-hidden />
+            {scoreDelta != null && (
+              <span
+                className={`text-xs font-bold tabular-nums px-2.5 py-1 rounded-full ${
+                  scoreDelta >= 0 ? "bg-[#00FF9D]/15 text-[#00FF9D]" : "bg-[#FF6B6B]/15 text-[#FF6B6B]"
+                }`}
+              >
+                {scoreDelta >= 0 ? "+" : ""}
+                {scoreDelta} pts
+              </span>
+            )}
+          </div>
+          <ScoreCircle value={p.signal_score_after} label="After EDM Signal" color="#00FF9D" />
+        </div>
+      </V4DeckSlide>
+      ) : null}
+
+      {showSlide(5) ? (
+      <V4DeckSlide
+        deckIndex={5}
+        slide={6}
+        total={totalSlides}
+        sectionLabel="Section 4 · PR rewrite & message upgrade"
+        title="PR Rewrite & Message Upgrade"
+      >
+        {prBullets.length > 0 ? (
+          <ul className="space-y-3 md:space-y-4 max-w-4xl">
+            {prBullets.map((bullet, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-4 rounded-2xl bg-white/[0.04] px-4 py-3.5 md:px-5 md:py-4"
+              >
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[#F59E0B]/12 border border-[#F59E0B]/25 text-[#FBBF24] text-xs font-black">
+                  {i + 1}
+                </span>
+                <span className="text-sm md:text-base text-[#C5D0E0] leading-relaxed">{bullet}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-[#64748B] italic">No message-upgrade bullets yet — add them under Signal Analysis in the report editor.</p>
+        )}
+      </V4DeckSlide>
+      ) : null}
+
+      {showSlide(6) ? (
+      <V4DeckSlide
+        deckIndex={6}
+        slide={7}
+        total={totalSlides}
+        sectionLabel="Section 5 · Content pack summary"
+        title="Content Pack Summary"
+      >
+        <p className="text-sm text-[#8B9AAF] mb-5 max-w-2xl">
+          Assets created for social, owned, and direct-response channels.
+        </p>
+        <div className="rounded-2xl bg-white/[0.04] p-4 md:p-6 flex-1 min-h-0">
+          <AssetBars payload={p} total={assetTotal} />
+        </div>
+      </V4DeckSlide>
+      ) : null}
+
+      {showSlide(7) ? (
+      <V4DeckSlide
+        deckIndex={7}
+        slide={8}
+        total={totalSlides}
+        sectionLabel="Section 6 · Distribution strategy"
+        title="Distribution Strategy"
+      >
+        <p className="text-sm text-[#8B9AAF] mb-5 max-w-2xl">
+          Where the campaign was deployed — click channel labels when links are set.
+        </p>
+        <div className="rounded-2xl bg-white/[0.04] p-4 md:p-6 flex-1 min-h-0">
+          <ReachBars payload={p} />
+        </div>
+      </V4DeckSlide>
+      ) : null}
+
+      {hasAmp && showSlide(8) ? (
+        <V4DeckSlide
+          deckIndex={8}
+          slide={9}
+          total={totalSlides}
+          sectionLabel="Section 7 · Amplification strategy"
+          title="Amplification Strategy"
+        >
+          <div className={p.ppc_enabled && p.influencer_enabled ? "grid lg:grid-cols-2 gap-5 flex-1" : "grid gap-5 flex-1"}>
+            {p.ppc_enabled && (
+              <div className="rounded-2xl bg-white/[0.04] p-4 md:p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#00E5FF] mb-4">PPC</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <KpiCard label="Impressions" value={fmt(p.impressions)} compact />
+                  <KpiCard label="CTR" value={p.ctr != null ? `${p.ctr}%` : "—"} compact />
+                  <KpiCard label="CPC" value={p.cpc != null ? `$${p.cpc}` : "—"} compact />
+                  <KpiCard label="Video Views" value={fmt(p.video_views)} compact />
+                </div>
+              </div>
+            )}
+            {p.influencer_enabled && (
+              <div className="rounded-2xl bg-white/[0.04] p-4 md:p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7B61FF] mb-4">Influencer</p>
+                <div className="grid grid-cols-3 gap-2 md:gap-3">
+                  <KpiCard label="Activated" value={fmt(p.influencers_activated)} compact />
+                  <KpiCard label="Reach" value={fmt(p.influencer_reach)} compact />
+                  <KpiCard label="Engagement" value={fmt(p.influencer_engagement)} compact />
+                </div>
+              </div>
+            )}
+          </div>
+        </V4DeckSlide>
+      ) : null}
+
+      {showSlide(hasAmp ? 9 : 8) ? (
+      <V4DeckSlide
+        deckIndex={hasAmp ? 9 : 8}
+        slide={hasAmp ? 10 : 9}
+        total={totalSlides}
+        sectionLabel={hasAmp ? "Section 8 · Narrative control" : "Section 8 · Narrative control"}
+        title="Narrative Control"
+      >
+        <div className="grid md:grid-cols-3 gap-3 md:gap-4 flex-1 content-start">
+          {[
+            { phase: "Phase 1", title: "Awareness", detail: p.campaign_type || "How the campaign introduced the story and why it mattered now." },
+            { phase: "Phase 2", title: "Validation", detail: p.algo_sentiment_bias || "Proof points that reinforced credibility and execution." },
+            { phase: "Phase 3", title: "Momentum", detail: p.recommended_cta_text || "How attention extends into the next cadence or announcement." },
+          ].map((row, i) => (
+            <div
+              key={row.phase}
+              className="relative overflow-hidden rounded-2xl bg-white/[0.04] p-5"
+            >
+              <span className="absolute top-3 right-3 text-[10px] font-mono font-bold text-white/20 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+              <p className="text-[10px] text-[#8B9AAF] uppercase tracking-widest">{row.phase}</p>
+              <p className="text-base font-semibold text-white mt-2">{row.title}</p>
+              <p className="text-xs text-[#94A3B8] mt-3 leading-relaxed">{row.detail}</p>
+            </div>
+          ))}
+        </div>
+      </V4DeckSlide>
+      ) : null}
+
+      {showSlide(hasAmp ? 10 : 9) ? (
+      <V4DeckSlide
+        deckIndex={hasAmp ? 10 : 9}
+        slide={hasAmp ? 11 : 10}
+        total={totalSlides}
+        sectionLabel={hasAmp ? "Section 9 · Campaign results" : "Section 9 · Campaign results"}
+        title="Campaign Results Dashboard"
+      >
+        <p className="text-sm text-[#8B9AAF] mb-5">Engagement mix for the reporting period.</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 flex-1 content-start">
+          <KpiCard label="Likes" value={fmt(p.likes)} hero color="#00E5FF" />
+          <KpiCard label="Comments" value={fmt(p.comments)} hero color="#7B61FF" />
+          <KpiCard label="Shares" value={fmt(p.shares)} hero color="#00FF9D" />
+          <KpiCard label="Clicks" value={fmt(p.clicks)} hero color="#F59E0B" />
+        </div>
+      </V4DeckSlide>
+      ) : null}
+
+      {showSlide(hasAmp ? 11 : 10) ? (
+      <V4DeckSlide
+        deckIndex={hasAmp ? 11 : 10}
+        slide={hasAmp ? 12 : 11}
+        total={totalSlides}
+        sectionLabel={hasAmp ? "Section 10 · Strategic recommendations" : "Section 10 · Strategic recommendations"}
+        title="Strategic Recommendations"
+      >
+        <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 flex-1 items-start">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#5C6573] mb-4">Action items</p>
+            {nextSteps.length > 0 ? (
+              <ol className="space-y-3">
+                {nextSteps.map((bullet, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[#00FF9D]/12 border border-[#00FF9D]/28 text-[#00FF9D] text-xs font-black tabular-nums">
+                      {i + 1}
+                    </span>
+                    <span className="text-sm md:text-base text-[#C5D0E0] leading-relaxed pt-0.5">{bullet}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="text-sm text-[#64748B] italic">Add next steps in the report editor.</p>
+            )}
+          </div>
+          <div
+            className="relative overflow-hidden rounded-2xl border border-[#00E5FF]/30 p-6 md:p-8 text-center"
+            style={{
+              background: "linear-gradient(145deg, rgba(0,229,255,0.12) 0%, rgba(123,97,255,0.08) 55%, transparent 100%)",
+            }}
+          >
+            <div className="absolute inset-0 opacity-30 pointer-events-none bg-[radial-gradient(circle_at_30%_0%,#00E5FF,transparent_55%)]" aria-hidden />
+            <p className="relative text-[10px] font-bold uppercase tracking-[0.2em] text-[#8B9AAF] mb-3">Next campaign opportunity</p>
+            <p className="relative text-lg md:text-xl font-bold text-white leading-snug">{p.recommended_cta_text || "—"}</p>
+          </div>
+        </div>
+      </V4DeckSlide>
+      ) : null}
+    </div>
+  );
+}
+
 /* ═══════════════════════════ MAIN COMPONENT ═══════════════════════════════ */
+
+function clampReportViewIndex(n: number): number {
+  return Math.max(0, Math.min(3, Math.floor(Number.isFinite(n) ? n : 0)));
+}
 
 export function ReportViewer({
   companyName,
@@ -1726,6 +2205,8 @@ export function ReportViewer({
   isDraft = false,
   publicSlug,
   pdfMode = false,
+  /** When `pdfMode`, which report variant (0–3) Playwright should render. Ignored in interactive mode. */
+  pdfInitialView,
 }: {
   companyName: string;
   ticker: string | null;
@@ -1736,18 +2217,48 @@ export function ReportViewer({
   isDraft?: boolean;
   publicSlug?: string;
   pdfMode?: boolean;
+  pdfInitialView?: number;
 }) {
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [currentSlide, setCurrentSlide] = useState(() =>
+    pdfMode ? clampReportViewIndex(pdfInitialView ?? 0) : 0
+  );
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [v4DeckIndex, setV4DeckIndex] = useState(0);
+  /** During browser print, mount every Report 4 slide so each `.pdf-slide` can paginate (otherwise only one slide exists in the DOM). */
+  const [v4PrintMountAllSlides, setV4PrintMountAllSlides] = useState(false);
+  const currentSlideRef = useRef(currentSlide);
+  currentSlideRef.current = currentSlide;
+
+  const v4DeckCount = useMemo(
+    () => 11 + (p.ppc_enabled || p.influencer_enabled ? 1 : 0),
+    [p.ppc_enabled, p.influencer_enabled]
+  );
 
   const switchView = useCallback((index: number) => {
-    const target = Math.max(0, Math.min(index, 2));
+    const target = Math.max(0, Math.min(index, 3));
     setCurrentSlide(target);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const goNext = useCallback(() => switchView(currentSlide + 1), [currentSlide, switchView]);
-  const goPrev = useCallback(() => switchView(currentSlide - 1), [currentSlide, switchView]);
+  const goNext = useCallback(() => {
+    if (currentSlide === 3) {
+      setV4DeckIndex((i) => Math.min(i + 1, v4DeckCount - 1));
+      return;
+    }
+    switchView(currentSlide + 1);
+  }, [currentSlide, v4DeckCount, switchView]);
+
+  const goPrev = useCallback(() => {
+    if (currentSlide === 3) {
+      setV4DeckIndex((i) => Math.max(i - 1, 0));
+      return;
+    }
+    switchView(currentSlide - 1);
+  }, [currentSlide, switchView]);
+
+  useEffect(() => {
+    if (currentSlide !== 3) setV4DeckIndex(0);
+  }, [currentSlide]);
 
   useEffect(() => {
     if (pdfMode) return;
@@ -1775,6 +2286,27 @@ export function ReportViewer({
     if (!window.location.search.includes("print=1")) return;
     const t = setTimeout(() => window.print(), 300);
     return () => clearTimeout(t);
+  }, [pdfMode]);
+
+  useEffect(() => {
+    if (pdfMode) return;
+    const onBeforePrint = () => {
+      if (currentSlideRef.current !== 3) return;
+      flushSync(() => setV4PrintMountAllSlides(true));
+    };
+    const onAfterPrint = () => setV4PrintMountAllSlides(false);
+    window.addEventListener("beforeprint", onBeforePrint);
+    window.addEventListener("afterprint", onAfterPrint);
+    const mq = window.matchMedia?.("print");
+    const onMq = () => {
+      if (!mq?.matches) setV4PrintMountAllSlides(false);
+    };
+    mq?.addEventListener("change", onMq);
+    return () => {
+      window.removeEventListener("beforeprint", onBeforePrint);
+      window.removeEventListener("afterprint", onAfterPrint);
+      mq?.removeEventListener("change", onMq);
+    };
   }, [pdfMode]);
 
   useEffect(() => {
@@ -1842,7 +2374,7 @@ export function ReportViewer({
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF]" aria-hidden />
               <span className="font-semibold tracking-wide">
-                {currentSlide === 0 ? "Report 1" : currentSlide === 1 ? "Report 2" : "Report 3"}
+                {currentSlide === 0 ? "Report 1" : currentSlide === 1 ? "Report 2" : currentSlide === 2 ? "Report 3" : "Report 4"}
               </span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -1867,6 +2399,7 @@ export function ReportViewer({
                   { label: "Report 1", index: 0 },
                   { label: "Report 2", index: 1 },
                   { label: "Report 3", index: 2 },
+                  { label: "Report 4", index: 3 },
                 ].map(({ label, index }) => (
                   <button
                     key={index}
@@ -1898,16 +2431,28 @@ export function ReportViewer({
         {/* ── Nav bar ── */}
         {!pdfMode && (
           <div className="no-print fixed top-4 right-4 z-50 flex items-center gap-1.5 rounded-2xl border border-white/[0.08] bg-[#060A0F]/90 backdrop-blur-xl px-3 py-2 text-xs shadow-2xl">
-            <button type="button" onClick={goPrev} className="px-2 py-1 text-[#8B9AAF] hover:text-white transition-colors rounded-lg hover:bg-white/5">
+            <button
+              type="button"
+              onClick={goPrev}
+              disabled={currentSlide === 0 || (currentSlide === 3 && v4DeckIndex === 0)}
+              className="px-2 py-1 text-[#8B9AAF] hover:text-white transition-colors rounded-lg hover:bg-white/5 disabled:opacity-35 disabled:pointer-events-none"
+            >
               ← Prev
             </button>
-            <span className="text-[#2A3442] px-1 tabular-nums">{currentSlide + 1} / 3</span>
-            <button type="button" onClick={goNext} className="px-2 py-1 text-[#8B9AAF] hover:text-white transition-colors rounded-lg hover:bg-white/5">
+            <span className="text-[#2A3442] px-1 tabular-nums">
+              {currentSlide === 3 ? `${v4DeckIndex + 1} / ${v4DeckCount}` : `${currentSlide + 1} / 4`}
+            </span>
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={currentSlide === 3 && v4DeckIndex >= v4DeckCount - 1}
+              className="px-2 py-1 text-[#8B9AAF] hover:text-white transition-colors rounded-lg hover:bg-white/5 disabled:opacity-35 disabled:pointer-events-none"
+            >
               Next →
             </button>
             {publicSlug && (
               <a
-                href={`/api/reports/${encodeURIComponent(publicSlug)}/pdf`}
+                href={`/api/reports/${encodeURIComponent(publicSlug)}/pdf?view=${currentSlide}`}
                 className="ml-1 rounded-xl bg-[#00E5FF] px-3 py-1.5 font-bold text-[#060A0F] hover:bg-[#33EEFF] transition-colors"
               >
                 PDF
@@ -1915,13 +2460,7 @@ export function ReportViewer({
             )}
             <button
               type="button"
-              onClick={() => {
-                if (publicSlug) {
-                  window.open(`/api/reports/${encodeURIComponent(publicSlug)}/pdf`, "_blank");
-                  return;
-                }
-                window.print();
-              }}
+              onClick={() => window.print()}
               className="rounded-xl border border-white/[0.08] px-2.5 py-1.5 font-medium text-[#8B9AAF] hover:text-white hover:border-white/20 transition-colors"
             >
               Print
@@ -1972,7 +2511,7 @@ export function ReportViewer({
                       EDM Signal
                     </p>
                     <h1 className="text-3xl md:text-4xl font-bold font-[family-name:var(--font-montserrat)] bg-gradient-to-r from-[#00E5FF] via-[#7B61FF] to-[#00FF9D] bg-clip-text text-transparent leading-tight">
-                      Performance Report
+                      Client Campaign Report
                     </h1>
                   </div>
                   {/* right: meta */}
@@ -2018,11 +2557,11 @@ export function ReportViewer({
                   aria-hidden
                 />
                 <h2 className="text-xl md:text-2xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
-                  Campaign performance
+                  1. Executive summary
                 </h2>
               </div>
 
-              {/* ── Hero KPI strip ── */}
+              {/* ── Hero KPI strip (template §1 — core outcome metrics) ── */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                 <KpiCard label="Total reach" value={fmt(p.total_reach)} hero />
                 <KpiCard label="Engagements" value={fmt(p.total_engagements)} color="#7B61FF" hero />
@@ -2035,7 +2574,38 @@ export function ReportViewer({
                 <KpiCard label="Assets deployed" value={fmt(p.assets_deployed)} compact />
               </div>
 
-              {/* ── Row: Signal score gauges | Channel mix ── */}
+              {/* ── 2. Campaign overview (template §2) ── */}
+              <div className="flex items-center gap-3 pt-2">
+                <div
+                  className="h-6 w-[3px] rounded-full"
+                  style={{ background: "linear-gradient(180deg, #7B61FF, #00E5FF)" }}
+                  aria-hidden
+                />
+                <h2 className="text-lg md:text-xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
+                  2. Campaign overview
+                </h2>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4 md:gap-5">
+                <SectionCard title="Campaign thesis" accent="purple">
+                  <p className="text-sm md:text-base text-[#C5D0E0] leading-relaxed">{p.campaign_type || "—"}</p>
+                </SectionCard>
+                <SectionCard title="Primary signal shift" accent="green">
+                  <p className="text-sm md:text-base text-[#C5D0E0] leading-relaxed">{p.algo_sentiment_bias || "—"}</p>
+                </SectionCard>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <div
+                  className="h-6 w-[3px] rounded-full"
+                  style={{ background: "linear-gradient(180deg, #00E5FF, #00FF9D)" }}
+                  aria-hidden
+                />
+                <h2 className="text-lg md:text-xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
+                  3. Signal score analysis
+                </h2>
+              </div>
+
+              {/* ── Gauges + channel mix (template §3) ── */}
               <div className="grid lg:grid-cols-2 gap-5">
                 <SectionCard title="Signal score" accent="cyan">
                   <div className="flex items-center justify-around gap-2 py-2">
@@ -2067,21 +2637,73 @@ export function ReportViewer({
                 </SectionCard>
               </div>
 
-              {/* ── Row: Signal breakdown | Content deployment ── */}
+              {/* ── 4. PR rewrite & message upgrade (template §4 — after signal, before asset grid) ── */}
+              <div className="flex items-center gap-3 pt-2">
+                <div
+                  className="h-6 w-[3px] rounded-full"
+                  style={{ background: "linear-gradient(180deg, #F59E0B, #00E5FF)" }}
+                  aria-hidden
+                />
+                <h2 className="text-lg md:text-xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
+                  4. PR rewrite &amp; message upgrade
+                </h2>
+              </div>
+              {(p.pr_score_bullets?.length ?? 0) > 0 ? (
+                <SectionCard title="Message improvement" accent="cyan">
+                  <ul className="space-y-3">
+                    {p.pr_score_bullets!.map((bullet, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#F59E0B]/15 border border-[#F59E0B]/25 text-[#F59E0B] text-xs font-bold">
+                          ✓
+                        </span>
+                        <span className="text-sm text-[#C5D0E0] leading-relaxed">{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </SectionCard>
+              ) : (
+                <SectionCard title="Message improvement" accent="cyan">
+                  <p className="text-sm text-[#64748B] italic">
+                    Add message-upgrade bullets under Signal Analysis in the report editor.
+                  </p>
+                </SectionCard>
+              )}
+
+              {/* ── 5. Content pack summary + signal factor breakdown (template §5 & §3 factors) ── */}
+              <div className="flex items-center gap-3 pt-2">
+                <div
+                  className="h-6 w-[3px] rounded-full"
+                  style={{ background: "linear-gradient(180deg, #00FF9D, #7B61FF)" }}
+                  aria-hidden
+                />
+                <h2 className="text-lg md:text-xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
+                  5. Content pack summary
+                </h2>
+              </div>
               <div className="grid lg:grid-cols-2 gap-5">
-                <SectionCard title="Signal breakdown" accent="green">
+                <SectionCard title="Signal factor breakdown" accent="green">
                   <ProgressBar label="Execution" before={p.execution_before || 0} after={p.execution_after || 0} />
                   <ProgressBar label="Clarity" before={p.clarity_before || 0} after={p.clarity_after || 0} />
                   <ProgressBar label="Distribution" before={p.distribution_before || 0} after={p.distribution_after || 0} />
                   <ProgressBar label="Engagement" before={p.engagement_axis_before || 0} after={p.engagement_axis_after || 0} />
                 </SectionCard>
 
-                <SectionCard title="Content deployment" subtitle="Assets published across all platforms." accent="cyan">
+                <SectionCard title="Content Pack Summary" subtitle="Assets across owned and social surfaces." accent="cyan">
                   <AssetBars payload={p} total={assetTotal} />
                 </SectionCard>
               </div>
 
-              {/* ── Full-width: Distribution reach & engagement ── */}
+              <div className="flex items-center gap-3 pt-2">
+                <div
+                  className="h-6 w-[3px] rounded-full"
+                  style={{ background: "linear-gradient(180deg, #7B61FF, #00E5FF)" }}
+                  aria-hidden
+                />
+                <h2 className="text-lg md:text-xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
+                  6. Distribution strategy
+                </h2>
+              </div>
+              {/* ── Reach & engagement (template §6) ── */}
               <SectionCard title="Distribution reach &amp; engagement" accent="purple">
                 <div className="grid md:grid-cols-[3fr_2fr] gap-8">
                   <div>
@@ -2123,20 +2745,6 @@ export function ReportViewer({
                 </div>
               </SectionCard>
 
-              {/* Signal Analysis */}
-              {(p.pr_score_bullets?.length ?? 0) > 0 && (
-                <SectionCard title="Why this PR scores well" accent="cyan">
-                  <ul className="space-y-3">
-                    {p.pr_score_bullets!.map((bullet, i) => (
-                      <li key={i} className="flex items-start gap-3">
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#F59E0B]/15 border border-[#F59E0B]/25 text-[#F59E0B] text-xs font-bold">✓</span>
-                        <span className="text-sm text-[#C5D0E0] leading-relaxed">{bullet}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </SectionCard>
-              )}
-
             </div>
           </Slide>
         </div>
@@ -2153,9 +2761,12 @@ export function ReportViewer({
                   aria-hidden
                 />
                 <h2 className="text-xl md:text-2xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
-                  Programs &amp; outcomes
+                  7–10 · Amplification, narrative &amp; recommendations
                 </h2>
               </div>
+              <p className="text-xs text-[#64748B] mb-2 max-w-2xl">
+                Continues the client template: amplification (§7), narrative (§8), results (§9), and strategic recommendations (§10).
+              </p>
 
               {(p.top_content?.length ?? 0) > 0 && (
                 <SectionCard title="Campaign Social Messaging" accent="cyan">
@@ -2352,7 +2963,7 @@ export function ReportViewer({
             payload={p}
             isDraft={isDraft}
           />
-        ) : (
+        ) : currentSlide === 2 ? (
           <ReportDashboardV3
             companyName={companyName}
             ticker={ticker}
@@ -2361,6 +2972,18 @@ export function ReportViewer({
             campaignEnd={campaignEnd}
             payload={p}
             isDraft={isDraft}
+          />
+        ) : (
+          <ReportDashboardV4
+            companyName={companyName}
+            ticker={ticker}
+            campaignName={campaignName}
+            campaignStart={campaignStart}
+            campaignEnd={campaignEnd}
+            payload={p}
+            interactiveSlideIndex={
+              pdfMode || v4PrintMountAllSlides ? undefined : v4DeckIndex
+            }
           />
         )}
 

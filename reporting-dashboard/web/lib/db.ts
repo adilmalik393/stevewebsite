@@ -1,11 +1,16 @@
 import { turso } from "./turso";
 import crypto from "crypto";
-import type { Row } from "@libsql/client";
+import type { InStatement, Row } from "@libsql/client";
 
 // --- Schema ---
 
-export async function initSchema() {
-  await turso.executeMultiple(`
+let migrationsPromise: Promise<void> | null = null;
+
+/** Runs CREATE TABLE IF NOT EXISTS once per process (covers dev / deploy without instrumentation). */
+async function ensureMigrations(): Promise<void> {
+  if (!migrationsPromise) {
+    migrationsPromise = turso
+      .executeMultiple(`
     CREATE TABLE IF NOT EXISTS client (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -48,7 +53,45 @@ export async function initSchema() {
       position INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-  `);
+
+    CREATE TABLE IF NOT EXISTS signal_deck (
+      id TEXT PRIMARY KEY,
+      client_id TEXT NOT NULL REFERENCES client(id) ON DELETE CASCADE,
+      deck_name TEXT NOT NULL DEFAULT '',
+      deck_start TEXT,
+      deck_end TEXT,
+      status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','published')),
+      slug TEXT UNIQUE,
+      payload TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS signal_deck_view (
+      id TEXT PRIMARY KEY,
+      deck_id TEXT NOT NULL REFERENCES signal_deck(id) ON DELETE CASCADE,
+      country TEXT,
+      country_code TEXT,
+      city TEXT,
+      viewed_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `)
+      .then(() => undefined)
+      .catch((err) => {
+        migrationsPromise = null;
+        throw err;
+      });
+  }
+  await migrationsPromise;
+}
+
+async function exec(stmt: InStatement) {
+  await ensureMigrations();
+  return turso.execute(stmt);
+}
+
+export async function initSchema(): Promise<void> {
+  await ensureMigrations();
 }
 
 // --- Helpers ---
@@ -87,6 +130,96 @@ export interface Report {
   payload: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface SignalDeck {
+  id: string;
+  client_id: string;
+  deck_name: string;
+  deck_start: string | null;
+  deck_end: string | null;
+  status: "draft" | "published";
+  slug: string | null;
+  payload: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One cell in the 4-quadrant Signal Score breakdown slide. */
+export interface SignalDeckQuadrant {
+  title: string;
+  bullets?: string[];
+}
+
+/** One metric row for before/after bar-style comparison (scores 0–100). */
+export interface SignalDeckBarMetricRow {
+  name: string;
+  before: number;
+  after: number;
+}
+
+/** Structured before/after Signal Score comparison (doc: bar comparison). */
+export interface SignalDeckSignalBarCompare {
+  beforeLabel?: string;
+  afterLabel?: string;
+  metrics: SignalDeckBarMetricRow[];
+  beforeTotal?: number;
+  afterTotal?: number;
+}
+
+/** One tier column on the packages slide. */
+export interface SignalDeckPricingColumn {
+  name: string;
+  price: string;
+  /** Highlight this tier (e.g. Amplified ⭐). */
+  highlight?: boolean;
+}
+
+/** One row in the package feature comparison table. */
+export interface SignalDeckFeatureRow {
+  feature: string;
+  starter: boolean;
+  amplified: boolean;
+  dominance: boolean;
+}
+
+/**
+ * One slide — fields follow `documents/EDM Signal Deck.docx` (Layout, Text, Subtext,
+ * Headers, bullets, bottom highlight / big line / stat bar).
+ * Optional `quadrants` / `signalBarCompare` / `pricingColumns` / `featureMatrix` / `visualAccent`
+ * power structured visuals in the public deck viewer.
+ * Legacy keys (`body`, `subtitle`, `layoutNotes`, `bottomLine`) are mapped on read via
+ * `normalizeSignalDeckPayload` in `signal-deck-normalize.ts`.
+ */
+export interface SignalDeckSlide {
+  /** Doc slide name or doc “Title:” (e.g. SLIDE 1 — COVER, Signal Score™). */
+  title: string;
+  /** Doc “Layout:” */
+  layout?: string;
+  /** Doc “Text:” — main body block. */
+  text?: string;
+  /** Doc “Subtext:” */
+  subtext?: string;
+  /** Doc “Headers:” — e.g. three column headers. */
+  headers?: string[];
+  /** Bullet lines (Text bullets, Includes, etc.). */
+  bullets?: string[];
+  /** Doc “Bottom (highlight):”, “Big line:”, “Bottom stat bar:”, “Bottom Text (large):”, “Bottom:”, “Highlight Box:”. */
+  bottomHighlight?: string;
+  /** Four-quadrant breakdown (doc: Signal Score breakdown). */
+  quadrants?: SignalDeckQuadrant[];
+  /** Before vs after metrics as grouped bars (doc: Before vs After Signal Score). */
+  signalBarCompare?: SignalDeckSignalBarCompare;
+  /** 3-column pricing row (doc: Packages). */
+  pricingColumns?: SignalDeckPricingColumn[];
+  /** Feature × tier matrix (doc: Package comparison table). */
+  featureMatrix?: SignalDeckFeatureRow[];
+  /** Decorative layer (e.g. doc PPC slide “rising chart”). */
+  visualAccent?: "rising_chart";
+}
+
+export interface SignalDeckPayload {
+  slides?: SignalDeckSlide[];
 }
 
 export interface ReportPayload {
@@ -177,7 +310,7 @@ export async function createClient(
   data: { company_name: string; ticker?: string; contact_email?: string }
 ): Promise<Client> {
   const id = genId();
-  await turso.execute({
+  await exec({
     sql: `INSERT INTO client (id, user_id, company_name, ticker, contact_email) VALUES (?, ?, ?, ?, ?)`,
     args: [id, userId, data.company_name, data.ticker || null, data.contact_email || null],
   });
@@ -185,7 +318,7 @@ export async function createClient(
 }
 
 export async function getClient(id: string): Promise<Client | null> {
-  const result = await turso.execute({
+  const result = await exec({
     sql: `SELECT * FROM client WHERE id = ?`,
     args: [id],
   });
@@ -196,7 +329,7 @@ export async function getClient(id: string): Promise<Client | null> {
 export async function listClients(
   userId: string
 ): Promise<(Client & { report_count: number })[]> {
-  const result = await turso.execute({
+  const result = await exec({
     sql: `SELECT c.*, (SELECT COUNT(*) FROM report r WHERE r.client_id = c.id) AS report_count
           FROM client c WHERE c.user_id = ? ORDER BY c.created_at DESC`,
     args: [userId],
@@ -207,7 +340,7 @@ export async function listClients(
 }
 
 export async function deleteClient(id: string): Promise<void> {
-  await turso.execute({ sql: `DELETE FROM client WHERE id = ?`, args: [id] });
+  await exec({ sql: `DELETE FROM client WHERE id = ?`, args: [id] });
 }
 
 // --- Report CRUD ---
@@ -217,7 +350,7 @@ export async function createReport(
   data: { campaign_name: string; campaign_start?: string; campaign_end?: string }
 ): Promise<Report> {
   const id = genId();
-  await turso.execute({
+  await exec({
     sql: `INSERT INTO report (id, client_id, campaign_name, campaign_start, campaign_end)
           VALUES (?, ?, ?, ?, ?)`,
     args: [id, clientId, data.campaign_name, data.campaign_start || null, data.campaign_end || null],
@@ -226,7 +359,7 @@ export async function createReport(
 }
 
 export async function getReport(id: string): Promise<Report | null> {
-  const result = await turso.execute({
+  const result = await exec({
     sql: `SELECT * FROM report WHERE id = ?`,
     args: [id],
   });
@@ -237,7 +370,7 @@ export async function getReport(id: string): Promise<Report | null> {
 export async function getReportBySlug(
   slug: string
 ): Promise<(Report & { company_name: string; ticker: string | null }) | null> {
-  const result = await turso.execute({
+  const result = await exec({
     sql: `SELECT r.*, c.company_name, c.ticker FROM report r
           JOIN client c ON c.id = r.client_id
           WHERE r.slug = ? AND r.status = 'published'`,
@@ -251,7 +384,7 @@ export async function getReportBySlug(
 }
 
 export async function listReports(clientId: string): Promise<Report[]> {
-  const result = await turso.execute({
+  const result = await exec({
     sql: `SELECT * FROM report WHERE client_id = ? ORDER BY created_at DESC`,
     args: [clientId],
   });
@@ -279,14 +412,14 @@ export async function updateReport(
   fields.push("updated_at = datetime('now')");
   values.push(id);
 
-  await turso.execute({ sql: `UPDATE report SET ${fields.join(", ")} WHERE id = ?`, args: values });
+  await exec({ sql: `UPDATE report SET ${fields.join(", ")} WHERE id = ?`, args: values });
 }
 
 export async function publishReport(id: string): Promise<string> {
   const report = await getReport(id);
   if (!report) throw new Error("Report not found");
   const slug = report.slug || genSlug();
-  await turso.execute({
+  await exec({
     sql: `UPDATE report SET status = 'published', slug = ?, updated_at = datetime('now') WHERE id = ?`,
     args: [slug, id],
   });
@@ -294,7 +427,7 @@ export async function publishReport(id: string): Promise<string> {
 }
 
 export async function unpublishReport(id: string): Promise<void> {
-  await turso.execute({
+  await exec({
     sql: `UPDATE report SET status = 'draft', updated_at = datetime('now') WHERE id = ?`,
     args: [id],
   });
@@ -304,7 +437,7 @@ export async function duplicateReport(id: string): Promise<Report> {
   const original = await getReport(id);
   if (!original) throw new Error("Report not found");
   const newId = genId();
-  await turso.execute({
+  await exec({
     sql: `INSERT INTO report (id, client_id, campaign_name, campaign_start, campaign_end, payload)
           VALUES (?, ?, ?, ?, ?, ?)`,
     args: [
@@ -320,7 +453,149 @@ export async function duplicateReport(id: string): Promise<Report> {
 }
 
 export async function deleteReport(id: string): Promise<void> {
-  await turso.execute({ sql: `DELETE FROM report WHERE id = ?`, args: [id] });
+  await exec({ sql: `DELETE FROM report WHERE id = ?`, args: [id] });
+}
+
+// --- Signal deck CRUD ---
+
+export async function createSignalDeck(
+  clientId: string,
+  data: {
+    deck_name: string;
+    deck_start?: string;
+    deck_end?: string;
+    /** JSON string; defaults to "{}" when omitted. */
+    payload?: string;
+  }
+): Promise<SignalDeck> {
+  const id = genId();
+  const payloadJson = data.payload ?? "{}";
+  await exec({
+    sql: `INSERT INTO signal_deck (id, client_id, deck_name, deck_start, deck_end, payload)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [
+      id,
+      clientId,
+      data.deck_name,
+      data.deck_start || null,
+      data.deck_end || null,
+      payloadJson,
+    ],
+  });
+  return (await getSignalDeck(id))!;
+}
+
+export async function getSignalDeck(id: string): Promise<SignalDeck | null> {
+  const result = await exec({
+    sql: `SELECT * FROM signal_deck WHERE id = ?`,
+    args: [id],
+  });
+  if (result.rows.length === 0) return null;
+  return toObj<SignalDeck>(result.rows[0], result.columns);
+}
+
+export async function getSignalDeckBySlug(
+  slug: string
+): Promise<(SignalDeck & { company_name: string; ticker: string | null }) | null> {
+  const result = await exec({
+    sql: `SELECT d.*, c.company_name, c.ticker FROM signal_deck d
+          JOIN client c ON c.id = d.client_id
+          WHERE d.slug = ? AND d.status = 'published'`,
+    args: [slug],
+  });
+  if (result.rows.length === 0) return null;
+  return toObj<SignalDeck & { company_name: string; ticker: string | null }>(
+    result.rows[0],
+    result.columns
+  );
+}
+
+export async function listSignalDecks(clientId: string): Promise<SignalDeck[]> {
+  const result = await exec({
+    sql: `SELECT * FROM signal_deck WHERE client_id = ? ORDER BY created_at DESC`,
+    args: [clientId],
+  });
+  return result.rows.map((row) => toObj<SignalDeck>(row, result.columns));
+}
+
+export async function updateSignalDeck(
+  id: string,
+  data: Partial<{
+    deck_name: string;
+    deck_start: string;
+    deck_end: string;
+    payload: string;
+  }>
+): Promise<void> {
+  const fields: string[] = [];
+  const values: (string | null)[] = [];
+
+  if (data.deck_name !== undefined) {
+    fields.push("deck_name = ?");
+    values.push(data.deck_name);
+  }
+  if (data.deck_start !== undefined) {
+    fields.push("deck_start = ?");
+    values.push(data.deck_start);
+  }
+  if (data.deck_end !== undefined) {
+    fields.push("deck_end = ?");
+    values.push(data.deck_end);
+  }
+  if (data.payload !== undefined) {
+    fields.push("payload = ?");
+    values.push(data.payload);
+  }
+
+  if (fields.length === 0) return;
+  fields.push("updated_at = datetime('now')");
+  values.push(id);
+
+  await exec({
+    sql: `UPDATE signal_deck SET ${fields.join(", ")} WHERE id = ?`,
+    args: values,
+  });
+}
+
+export async function publishSignalDeck(id: string): Promise<string> {
+  const deck = await getSignalDeck(id);
+  if (!deck) throw new Error("Deck not found");
+  const slug = deck.slug || genSlug();
+  await exec({
+    sql: `UPDATE signal_deck SET status = 'published', slug = ?, updated_at = datetime('now') WHERE id = ?`,
+    args: [slug, id],
+  });
+  return slug;
+}
+
+export async function unpublishSignalDeck(id: string): Promise<void> {
+  await exec({
+    sql: `UPDATE signal_deck SET status = 'draft', updated_at = datetime('now') WHERE id = ?`,
+    args: [id],
+  });
+}
+
+export async function duplicateSignalDeck(id: string): Promise<SignalDeck> {
+  const original = await getSignalDeck(id);
+  if (!original) throw new Error("Deck not found");
+  const newId = genId();
+  await exec({
+    sql: `INSERT INTO signal_deck (id, client_id, deck_name, deck_start, deck_end, payload)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [
+      newId,
+      original.client_id,
+      `${original.deck_name} (copy)`,
+      original.deck_start,
+      original.deck_end,
+      original.payload,
+    ],
+  });
+  return (await getSignalDeck(newId))!;
+}
+
+export async function deleteSignalDeck(id: string): Promise<void> {
+  await exec({ sql: `DELETE FROM signal_deck WHERE id = ?`, args: [id] });
 }
 
 // --- Report View Analytics ---
@@ -332,7 +607,7 @@ export async function logReportView(
   city?: string | null
 ): Promise<void> {
   const id = genId();
-  await turso.execute({
+  await exec({
     sql: `INSERT INTO report_view (id, report_id, country, country_code, city) VALUES (?, ?, ?, ?, ?)`,
     args: [id, reportId, country ?? null, countryCode ?? null, city ?? null],
   });
@@ -346,17 +621,17 @@ export interface ReportViewStats {
 
 export async function getReportViewStats(reportId: string): Promise<ReportViewStats> {
   const [totalResult, byCountryResult, recentResult] = await Promise.all([
-    turso.execute({
+    exec({
       sql: `SELECT COUNT(*) as total FROM report_view WHERE report_id = ?`,
       args: [reportId],
     }),
-    turso.execute({
+    exec({
       sql: `SELECT country, country_code, COUNT(*) as views
             FROM report_view WHERE report_id = ?
             GROUP BY country, country_code ORDER BY views DESC LIMIT 20`,
       args: [reportId],
     }),
-    turso.execute({
+    exec({
       sql: `SELECT viewed_at, country, city FROM report_view
             WHERE report_id = ? ORDER BY viewed_at DESC LIMIT 10`,
       args: [reportId],
@@ -381,9 +656,30 @@ export async function getReportViewStats(reportId: string): Promise<ReportViewSt
 }
 
 export async function getReportViewCount(reportId: string): Promise<number> {
-  const result = await turso.execute({
+  const result = await exec({
     sql: `SELECT COUNT(*) as total FROM report_view WHERE report_id = ?`,
     args: [reportId],
+  });
+  return Number(result.rows[0][0]);
+}
+
+export async function logDeckView(
+  deckId: string,
+  country?: string | null,
+  countryCode?: string | null,
+  city?: string | null
+): Promise<void> {
+  const id = genId();
+  await exec({
+    sql: `INSERT INTO signal_deck_view (id, deck_id, country, country_code, city) VALUES (?, ?, ?, ?, ?)`,
+    args: [id, deckId, country ?? null, countryCode ?? null, city ?? null],
+  });
+}
+
+export async function getDeckViewCount(deckId: string): Promise<number> {
+  const result = await exec({
+    sql: `SELECT COUNT(*) as total FROM signal_deck_view WHERE deck_id = ?`,
+    args: [deckId],
   });
   return Number(result.rows[0][0]);
 }

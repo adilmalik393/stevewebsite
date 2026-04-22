@@ -1,0 +1,324 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useFormStatus } from "react-dom";
+import { addDeck, removeDeck } from "../../actions";
+import { DeckDuplicateButton, DeckPublishButton } from "./deck-actions";
+import { IconDelete, IconView, iconClass } from "./report-icons";
+
+export type DeckListItem = {
+  id: string;
+  deck_name: string;
+  deck_start: string | null;
+  deck_end: string | null;
+  status: string;
+  slug: string | null;
+  view_count?: number;
+};
+
+type StatusFilter = "all" | "draft" | "published";
+
+function CreateDeckSubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="px-5 py-2.5 bg-[var(--accent)] text-[var(--bg-base)] font-bold rounded-xl text-sm hover:bg-[var(--accent-hover)] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+    >
+      {pending ? "Creating…" : "Create deck"}
+    </button>
+  );
+}
+
+export function ClientDecksSection({
+  clientId,
+  decks,
+}: {
+  clientId: string;
+  decks: DeckListItem[];
+}) {
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return decks.filter((d) => {
+      if (statusFilter !== "all" && d.status !== statusFilter) return false;
+      if (!q) return true;
+      const name = (d.deck_name || "").toLowerCase();
+      const dates = `${d.deck_start ?? ""} ${d.deck_end ?? ""}`.toLowerCase();
+      return name.includes(q) || dates.includes(q) || d.status.includes(q);
+    });
+  }, [decks, search, statusFilter]);
+
+  const closeCreate = useCallback(() => setCreateOpen(false), []);
+
+  useEffect(() => {
+    if (!createOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeCreate();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [createOpen, closeCreate]);
+
+  useEffect(() => {
+    if (!filterOpen) return;
+    const onPointer = (e: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setFilterOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointer);
+    return () => document.removeEventListener("mousedown", onPointer);
+  }, [filterOpen]);
+
+  return (
+    <>
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center mb-6">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search decks…"
+          className="flex-1 min-w-0 px-3 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm placeholder-[var(--placeholder)] focus:outline-none focus:border-[var(--accent)] transition"
+          aria-label="Search decks"
+        />
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="px-4 py-2.5 bg-[var(--accent)] text-white font-semibold rounded-lg text-sm hover:bg-[var(--accent-hover)] transition whitespace-nowrap"
+          >
+            Create deck
+          </button>
+          <div className="relative" ref={filterRef}>
+            <button
+              type="button"
+              onClick={() => setFilterOpen((o) => !o)}
+              className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition whitespace-nowrap ${
+                filterOpen || statusFilter !== "all"
+                  ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent-bg)]"
+                  : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--hover-border)] bg-[var(--bg-surface)]"
+              }`}
+            >
+              Filter
+            </button>
+            {filterOpen && (
+              <div
+                className="absolute right-0 top-full mt-2 z-40 min-w-[180px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] py-1 shadow-xl"
+                role="menu"
+              >
+                {(
+                  [
+                    ["all", "All decks"],
+                    ["draft", "Draft only"],
+                    ["published", "Published only"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setStatusFilter(value);
+                      setFilterOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm transition ${
+                      statusFilter === value
+                        ? "text-[var(--accent)] bg-[var(--accent-bg)]"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-bold mb-4">Signal Deck</h2>
+      {decks.length === 0 ? (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-12 text-center">
+          <p className="text-[var(--text-faint)]">No decks yet. Create one with Create deck.</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-12 text-center">
+          <p className="text-[var(--text-faint)]">No decks match your search or filter.</p>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {filtered.map((deck) => (
+            <div
+              key={deck.id}
+              className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex items-center justify-between hover:border-[var(--hover-border)] transition"
+            >
+              <Link href={`/dashboard/clients/${clientId}/decks/${deck.id}`} className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h3 className="font-semibold text-[var(--text-primary)] truncate">
+                    {deck.deck_name || "Untitled"}
+                  </h3>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded font-medium shrink-0 ${
+                      deck.status === "published"
+                        ? "bg-[var(--success-bg)] text-[var(--success)]"
+                        : "text-[var(--text-faint)]"
+                    }`}
+                  >
+                    {deck.status}
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--text-faint)] mt-1 flex items-center gap-3">
+                  <span>
+                    {deck.deck_start || "No dates"}{" "}
+                    {deck.deck_end ? `→ ${deck.deck_end}` : ""}
+                  </span>
+                  {deck.status === "published" && (
+                    <span className="flex items-center gap-1 text-[var(--text-muted)]">
+                      <svg
+                        width="11"
+                        height="11"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                      {deck.view_count ?? 0}
+                    </span>
+                  )}
+                </p>
+              </Link>
+              <div className="flex items-center gap-2 ml-4 shrink-0">
+                {deck.slug && deck.status === "published" && (
+                  <Link
+                    href={`/d/${deck.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center rounded-lg p-2 text-[var(--accent)] border border-transparent hover:bg-[var(--accent-bg)] hover:border-[var(--accent-border-sm)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                    title="View public deck"
+                    aria-label="View public deck"
+                  >
+                    <IconView className={iconClass()} />
+                  </Link>
+                )}
+                <DeckPublishButton deckId={deck.id} status={deck.status} />
+                <DeckDuplicateButton deckId={deck.id} clientId={clientId} />
+                <form action={removeDeck}>
+                  <input type="hidden" name="deckId" value={deck.id} />
+                  <input type="hidden" name="clientId" value={clientId} />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center rounded-lg p-2 text-[var(--text-faint)] border border-transparent hover:text-[var(--danger)] hover:bg-[var(--danger-bg)] hover:border-[var(--danger-border)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--danger)]"
+                    title="Delete"
+                    aria-label="Delete"
+                  >
+                    <IconDelete className={iconClass()} />
+                  </button>
+                </form>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {createOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCreate();
+          }}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-card)] shadow-2xl overflow-hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="new-deck-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-[var(--border-strong)] bg-[var(--accent-bg-sub)] flex items-start justify-between gap-4">
+              <div>
+                <h3
+                  id="new-deck-title"
+                  className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wide"
+                >
+                  New EDM Signal Deck
+                </h3>
+                <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                  Same flow as a campaign report — deck outline comes from EDM Signal Deck.docx.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeCreate}
+                className="text-[var(--text-faint)] hover:text-[var(--text-primary)] text-lg leading-none px-1"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <form action={addDeck} className="p-6 space-y-5">
+              <input type="hidden" name="clientId" value={clientId} />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
+                    Deck name *
+                  </label>
+                  <input
+                    name="deck_name"
+                    required
+                    placeholder="Q2 2026 Signal Deck"
+                    className="w-full px-4 py-2.5 bg-[var(--bg-base)] border border-[var(--border-strong)] rounded-xl text-[var(--text-primary)] text-sm placeholder-[var(--placeholder)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent-bg)] transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
+                    Start date
+                  </label>
+                  <input
+                    name="deck_start"
+                    type="date"
+                    className="w-full px-4 py-2.5 bg-[var(--bg-base)] border border-[var(--border-strong)] rounded-xl text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent-bg)] transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
+                    End date
+                  </label>
+                  <input
+                    name="deck_end"
+                    type="date"
+                    className="w-full px-4 py-2.5 bg-[var(--bg-base)] border border-[var(--border-strong)] rounded-xl text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent-bg)] transition-all"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3 pt-1">
+                <CreateDeckSubmitButton />
+                <button
+                  type="button"
+                  onClick={closeCreate}
+                  className="px-4 py-2.5 rounded-xl text-sm font-medium text-[var(--text-secondary)] border border-[var(--border-strong)] hover:border-[var(--hover-border)] hover:text-[var(--text-primary)] transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

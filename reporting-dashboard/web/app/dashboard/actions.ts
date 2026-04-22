@@ -10,7 +10,14 @@ import {
   unpublishReport,
   duplicateReport,
   deleteReport,
+  createSignalDeck,
+  updateSignalDeck,
+  publishSignalDeck,
+  unpublishSignalDeck,
+  duplicateSignalDeck,
+  deleteSignalDeck,
 } from "@/lib/db";
+import { minimalDeckFallback } from "@/lib/signal-deck-template";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -110,4 +117,69 @@ export async function removeReport(formData: FormData) {
   await deleteReport(reportId);
   revalidatePath(`/dashboard`);
   redirect(`/dashboard/clients/${clientId}`);
+}
+
+// --- Signal deck actions ---
+
+export async function addDeck(formData: FormData) {
+  await getUser();
+  const clientId = formData.get("clientId") as string;
+  const deck_name = formData.get("deck_name") as string;
+  const deck_start = formData.get("deck_start") as string;
+  const deck_end = formData.get("deck_end") as string;
+
+  if (!deck_name?.trim()) throw new Error("Deck name is required");
+
+  const deck = await createSignalDeck(clientId, {
+    deck_name: deck_name.trim(),
+    deck_start: deck_start || undefined,
+    deck_end: deck_end || undefined,
+    payload: JSON.stringify(minimalDeckFallback()),
+  });
+
+  redirect(`/dashboard/clients/${clientId}/decks/${deck.id}`);
+}
+
+export async function saveDeckPayload(deckId: string, payload: string) {
+  await getUser();
+  await updateSignalDeck(deckId, { payload });
+  revalidatePath(`/dashboard`);
+}
+
+export async function saveDeckMeta(
+  deckId: string,
+  data: { deck_name: string; deck_start: string; deck_end: string }
+) {
+  await getUser();
+  await updateSignalDeck(deckId, data);
+  revalidatePath(`/dashboard`);
+}
+
+export async function publishDeck(deckId: string) {
+  await getUser();
+  const slug = await publishSignalDeck(deckId);
+  revalidatePath(`/dashboard`);
+  return slug;
+}
+
+export async function unpublishDeck(deckId: string) {
+  await getUser();
+  await unpublishSignalDeck(deckId);
+  revalidatePath(`/dashboard`);
+}
+
+export async function duplicateDeck(deckId: string, clientId: string) {
+  await getUser();
+  const newDeck = await duplicateSignalDeck(deckId);
+  revalidatePath(`/dashboard`);
+  redirect(`/dashboard/clients/${clientId}/decks/${newDeck.id}`);
+}
+
+export async function removeDeck(formData: FormData) {
+  await getUser();
+  const deckId = formData.get("deckId") as string;
+  const clientId = formData.get("clientId") as string;
+  await deleteSignalDeck(deckId);
+  revalidatePath(`/dashboard`);
+  redirect(`/dashboard/clients/${clientId}?tab=decks`);
 }

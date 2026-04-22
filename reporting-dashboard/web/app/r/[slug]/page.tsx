@@ -4,17 +4,26 @@ import { headers } from "next/headers";
 import type { ReportPayload } from "@/lib/db";
 import { ReportViewer } from "./report-viewer";
 
+function clampPdfView(raw: string | string[] | undefined): number {
+  const s = Array.isArray(raw) ? raw[0] : raw;
+  if (s == null || s === "") return 0;
+  const n = Number.parseInt(s, 10);
+  if (Number.isNaN(n)) return 0;
+  return Math.max(0, Math.min(3, n));
+}
+
 export default async function PublicReportPage(props: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ pdf?: string; print?: string }>;
+  searchParams: Promise<{ pdf?: string; print?: string; view?: string | string[] }>;
 }) {
   const { slug } = await props.params;
-  const { pdf: pdfParam } = await props.searchParams;
+  const { pdf: pdfParam, view: viewParam } = await props.searchParams;
   const report = await getReportBySlug(slug);
   if (!report) notFound();
 
   const payload: ReportPayload = JSON.parse(report.payload || "{}");
   const pdfMode = pdfParam === "1";
+  const pdfInitialView = pdfMode ? clampPdfView(viewParam) : undefined;
 
   // Track the view (skip for PDF/print renders)
   if (!pdfMode) {
@@ -69,6 +78,7 @@ export default async function PublicReportPage(props: {
       payload={payload}
       publicSlug={slug}
       pdfMode={pdfMode}
+      pdfInitialView={pdfInitialView}
     />
   );
 }
