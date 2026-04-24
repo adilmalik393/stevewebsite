@@ -235,9 +235,16 @@ export interface ReportPayload {
   campaign_type?: string;
   // Signal Analysis
   pr_score_bullets?: string[];
+  // PR Rewrite & Message Upgrade
+  pr_rewrite_pairs?: {
+    original: string;
+    rewrite: string;
+  }[];
+  message_improvement_notes?: string[];
   // Next PR Guidance
   next_pr_bullets?: string[];
   // Signal Breakdown (each 0-100)
+  signal_score_enabled?: boolean;
   execution_before?: number;
   execution_after?: number;
   clarity_before?: number;
@@ -247,13 +254,19 @@ export interface ReportPayload {
   engagement_axis_before?: number;
   engagement_axis_after?: number;
   // Content Deployment
+  content_deployment_enabled?: boolean;
   x_threads?: number;
   reddit_posts?: number;
   videos?: number;
   articles?: number;
   emails?: number;
   push_notifications?: number;
+  content_deployment_platforms?: {
+    platform: string;
+    count?: number;
+  }[];
   // Distribution Reach
+  distribution_enabled?: boolean;
   x_reach?: number;
   reddit_reach?: number;
   discord_reach?: number;
@@ -264,7 +277,13 @@ export interface ReportPayload {
   discord_reach_url?: string;
   telegram_reach_url?: string;
   email_reach_url?: string;
+  distribution_channels?: {
+    platform: string;
+    reach?: number;
+    link?: string;
+  }[];
   // Engagement
+  engagement_enabled?: boolean;
   likes?: number;
   comments?: number;
   shares?: number;
@@ -290,8 +309,10 @@ export interface ReportPayload {
   influencer_reach?: number;
   influencer_engagement?: number;
   // Market Impact
+  market_impact_enabled?: boolean;
   market_impact_bullets?: string[];
   // Next Steps
+  next_steps_enabled?: boolean;
   recommended_cta_text?: string;
   next_steps_bullets?: string[];
   // Social Posts

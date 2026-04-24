@@ -85,6 +85,14 @@ function SectionSvgIcon({ id, className = "" }: { id: string; className?: string
         <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
       </svg>
     ),
+    "pr-rewrite": (
+      <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="9" y1="13" x2="15" y2="13"/>
+        <line x1="9" y1="17" x2="15" y2="17"/>
+      </svg>
+    ),
     "next-pr-guidance": (
       <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
@@ -99,13 +107,14 @@ const SECTIONS = [
   { id: "cover",              label: "Cover" },
   { id: "executive-summary",  label: "Executive Summary" },
   { id: "signal-score",       label: "Signal Score" },
+  { id: "pr-rewrite",         label: "PR Rewrite" },
   { id: "content-deployment", label: "Content Deployment" },
-  { id: "distribution",       label: "Distribution" },
-  { id: "engagement",         label: "Engagement" },
   { id: "top-content",        label: "Top Content" },
+  { id: "distribution",       label: "Distribution" },
   { id: "ppc",                label: "PPC" },
   { id: "influencer",         label: "Influencer" },
   { id: "market-impact",      label: "Market Impact" },
+  { id: "engagement",         label: "Engagement" },
   { id: "next-steps",         label: "Next Steps" },
   { id: "signal-analysis",    label: "Signal Analysis" },
   { id: "next-pr-guidance",   label: "Next PR Guidance" },
@@ -276,17 +285,15 @@ export function ReportForm({
   const [meta, setMeta] = useState(initialMeta);
   const [p, setP] = useState<ReportPayload>({
     prepared_by: "EDM Media",
-    market_impact_bullets: [
-      "Increased investor awareness",
-      "Stronger visibility",
-      "Improved narrative positioning",
-    ],
-    recommended_cta_text: "Recommended: Monthly Engagement ($25K)",
-    next_steps_bullets: [
-      "Continue campaign cadence",
-      "Expand PPC",
-      "Increase influencer activity",
-    ],
+    signal_score_enabled: false,
+    content_deployment_enabled: false,
+    distribution_enabled: false,
+    engagement_enabled: false,
+    market_impact_enabled: false,
+    next_steps_enabled: false,
+    market_impact_bullets: [],
+    recommended_cta_text: "",
+    next_steps_bullets: [],
     ...initialPayload,
   });
   const [saving, setSaving] = useState(false);
@@ -528,129 +535,405 @@ export function ReportForm({
 
           {/* Signal Score */}
           <Section id="signal-score" title="Signal Score" accent>
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="p-4 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] text-center space-y-2">
-                <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Score Before</p>
-                <NumberInput
-                  value={p.signal_score_before}
-                  onChange={(v) => update({ signal_score_before: v })}
-                  placeholder="32"
+            <label className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] cursor-pointer hover:border-[var(--accent-border-sm)] transition-all mb-4">
+              <div
+                className={`w-10 h-6 rounded-full transition-colors relative ${
+                  p.signal_score_enabled !== false ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    p.signal_score_enabled !== false ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+                <input
+                  type="checkbox"
+                  checked={p.signal_score_enabled !== false}
+                  onChange={(e) => update({ signal_score_enabled: e.target.checked })}
+                  className="sr-only"
                 />
               </div>
-              <div className="p-4 rounded-xl bg-[var(--accent-bg-sub)] border border-[var(--accent-border)] text-center space-y-2">
-                <p className="text-[10px] font-bold text-[var(--accent)] uppercase tracking-widest">Score After</p>
-                <NumberInput
-                  value={p.signal_score_after}
-                  onChange={(v) => update({ signal_score_after: v })}
-                  placeholder="86"
-                />
-              </div>
+              <span className="text-sm text-[var(--text-secondary)]">Include Signal Score section</span>
+            </label>
+            {p.signal_score_enabled !== false && (
+              <>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="p-4 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] text-center space-y-2">
+                    <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Score Before</p>
+                    <NumberInput
+                      value={p.signal_score_before}
+                      onChange={(v) => update({ signal_score_before: v })}
+                      placeholder="32"
+                    />
+                  </div>
+                  <div className="p-4 rounded-xl bg-[var(--accent-bg-sub)] border border-[var(--accent-border)] text-center space-y-2">
+                    <p className="text-[10px] font-bold text-[var(--accent)] uppercase tracking-widest">Score After</p>
+                    <NumberInput
+                      value={p.signal_score_after}
+                      onChange={(v) => update({ signal_score_after: v })}
+                      placeholder="86"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-3 px-3 py-2">
+                    <span className="text-[10px] font-bold text-[var(--text-faint)] uppercase tracking-wider">Axis</span>
+                    <span className="text-[10px] font-bold text-[var(--text-faint)] uppercase tracking-wider">Before</span>
+                    <span className="text-[10px] font-bold text-[var(--text-faint)] uppercase tracking-wider">After</span>
+                  </div>
+                  <BeforeAfterRow
+                    label="Execution"
+                    before={p.execution_before}
+                    after={p.execution_after}
+                    onBeforeChange={(v) => update({ execution_before: v })}
+                    onAfterChange={(v) => update({ execution_after: v })}
+                  />
+                  <BeforeAfterRow
+                    label="Clarity"
+                    before={p.clarity_before}
+                    after={p.clarity_after}
+                    onBeforeChange={(v) => update({ clarity_before: v })}
+                    onAfterChange={(v) => update({ clarity_after: v })}
+                  />
+                  <BeforeAfterRow
+                    label="Distribution"
+                    before={p.distribution_before}
+                    after={p.distribution_after}
+                    onBeforeChange={(v) => update({ distribution_before: v })}
+                    onAfterChange={(v) => update({ distribution_after: v })}
+                  />
+                  <BeforeAfterRow
+                    label="Engagement"
+                    before={p.engagement_axis_before}
+                    after={p.engagement_axis_after}
+                    onBeforeChange={(v) => update({ engagement_axis_before: v })}
+                    onAfterChange={(v) => update({ engagement_axis_after: v })}
+                  />
+                </div>
+              </>
+            )}
+          </Section>
+
+          {/* PR Rewrite & Message Upgrade */}
+          <Section id="pr-rewrite" title="PR Rewrite & Message Upgrade" accent>
+            <p className="text-xs text-[var(--text-muted)] mb-4">
+              Compare original PR language with the upgraded EDM Signal rewrite.
+            </p>
+            <div className="space-y-4">
+              {(p.pr_rewrite_pairs || []).map((pair, i) => (
+                <div
+                  key={i}
+                  className="rounded-xl border border-[var(--border-strong)] bg-[var(--bg-base)] p-4 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                      Rewrite Pair #{i + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        update({
+                          pr_rewrite_pairs: (p.pr_rewrite_pairs || []).filter((_, j) => j !== i),
+                        })
+                      }
+                      className="text-xs text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors px-2 py-1 rounded-lg hover:bg-[var(--danger-bg)]"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <Field label="Original PR Language">
+                      <textarea
+                        value={pair.original || ""}
+                        onChange={(e) => {
+                          const arr = [...(p.pr_rewrite_pairs || [])];
+                          arr[i] = { ...arr[i], original: e.target.value };
+                          update({ pr_rewrite_pairs: arr });
+                        }}
+                        rows={4}
+                        placeholder="Paste representative excerpt from original press release"
+                        className="w-full px-4 py-2.5 bg-[var(--bg-base)] border border-[var(--border-strong)] rounded-xl text-[var(--text-primary)] text-sm placeholder-[var(--placeholder)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent-bg)] transition-all resize-none"
+                      />
+                    </Field>
+                    <Field label="EDM Signal Rewrite">
+                      <textarea
+                        value={pair.rewrite || ""}
+                        onChange={(e) => {
+                          const arr = [...(p.pr_rewrite_pairs || [])];
+                          arr[i] = { ...arr[i], rewrite: e.target.value };
+                          update({ pr_rewrite_pairs: arr });
+                        }}
+                        rows={4}
+                        placeholder="Insert upgraded rewrite with clear execution and market relevance"
+                        className="w-full px-4 py-2.5 bg-[var(--bg-base)] border border-[var(--border-strong)] rounded-xl text-[var(--text-primary)] text-sm placeholder-[var(--placeholder)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent-bg)] transition-all resize-none"
+                      />
+                    </Field>
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  update({
+                    pr_rewrite_pairs: [...(p.pr_rewrite_pairs || []), { original: "", rewrite: "" }],
+                  })
+                }
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent-border)] transition-all w-full justify-center"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                Add rewrite pair
+              </button>
             </div>
-            <div className="space-y-2">
-              <div className="grid grid-cols-3 gap-3 px-3 py-2">
-                <span className="text-[10px] font-bold text-[var(--text-faint)] uppercase tracking-wider">Axis</span>
-                <span className="text-[10px] font-bold text-[var(--text-faint)] uppercase tracking-wider">Before</span>
-                <span className="text-[10px] font-bold text-[var(--text-faint)] uppercase tracking-wider">After</span>
-              </div>
-              <BeforeAfterRow
-                label="Execution"
-                before={p.execution_before}
-                after={p.execution_after}
-                onBeforeChange={(v) => update({ execution_before: v })}
-                onAfterChange={(v) => update({ execution_after: v })}
-              />
-              <BeforeAfterRow
-                label="Clarity"
-                before={p.clarity_before}
-                after={p.clarity_after}
-                onBeforeChange={(v) => update({ clarity_before: v })}
-                onAfterChange={(v) => update({ clarity_after: v })}
-              />
-              <BeforeAfterRow
-                label="Distribution"
-                before={p.distribution_before}
-                after={p.distribution_after}
-                onBeforeChange={(v) => update({ distribution_before: v })}
-                onAfterChange={(v) => update({ distribution_after: v })}
-              />
-              <BeforeAfterRow
-                label="Engagement"
-                before={p.engagement_axis_before}
-                after={p.engagement_axis_after}
-                onBeforeChange={(v) => update({ engagement_axis_before: v })}
-                onAfterChange={(v) => update({ engagement_axis_after: v })}
-              />
+
+            <div className="mt-5 space-y-2">
+              <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">
+                Message Improvement Notes
+              </p>
+              {(p.message_improvement_notes || []).map((note, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <span className="text-[var(--accent)] text-xs shrink-0">•</span>
+                  <div className="flex-1">
+                    <Input
+                      value={note}
+                      onChange={(v) => {
+                        const arr = [...(p.message_improvement_notes || [])];
+                        arr[i] = v;
+                        update({ message_improvement_notes: arr });
+                      }}
+                      placeholder="What improved in the rewrite and why it is stronger"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      update({
+                        message_improvement_notes: (p.message_improvement_notes || []).filter((_, j) => j !== i),
+                      })
+                    }
+                    className="text-xs text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors p-1.5 rounded-lg hover:bg-[var(--danger-bg)] shrink-0"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  update({ message_improvement_notes: [...(p.message_improvement_notes || []), ""] })
+                }
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent-border)] transition-all w-full justify-center"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                Add note
+              </button>
             </div>
           </Section>
 
           {/* Content Deployment */}
           <Section id="content-deployment" title="Content Deployment">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {[
-                { label: "X Threads", key: "x_threads" as const },
-                { label: "Reddit Posts", key: "reddit_posts" as const },
-                { label: "Videos", key: "videos" as const },
-                { label: "Articles", key: "articles" as const },
-                { label: "Emails", key: "emails" as const },
-                { label: "Push Notifications", key: "push_notifications" as const },
-              ].map(({ label, key }) => (
-                <StatCard key={key} label={label}>
-                  <NumberInput
-                    value={p[key] as number | undefined}
-                    onChange={(v) => update({ [key]: v })}
-                    placeholder="0"
-                  />
-                </StatCard>
-              ))}
-            </div>
+            <label className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] cursor-pointer hover:border-[var(--accent-border-sm)] transition-all mb-4">
+              <div
+                className={`w-10 h-6 rounded-full transition-colors relative ${
+                  p.content_deployment_enabled !== false ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    p.content_deployment_enabled !== false ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+                <input
+                  type="checkbox"
+                  checked={p.content_deployment_enabled !== false}
+                  onChange={(e) => update({ content_deployment_enabled: e.target.checked })}
+                  className="sr-only"
+                />
+              </div>
+              <span className="text-sm text-[var(--text-secondary)]">Include Content Deployment section</span>
+            </label>
+            {p.content_deployment_enabled !== false && (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Platforms</p>
+                  {(p.content_deployment_platforms || []).map((row, i) => (
+                    <div
+                      key={i}
+                      className="rounded-xl border border-[var(--border-strong)] bg-[var(--bg-base)] p-3 space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                          Platform #{i + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            update({
+                              content_deployment_platforms: (p.content_deployment_platforms || []).filter((_, j) => j !== i),
+                            })
+                          }
+                          className="text-xs text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors px-2 py-1 rounded-lg hover:bg-[var(--danger-bg)]"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-3">
+                        <Field label="Platform Name">
+                          <Input
+                            value={row.platform || ""}
+                            onChange={(v) => {
+                              const arr = [...(p.content_deployment_platforms || [])];
+                              arr[i] = { ...arr[i], platform: v };
+                              update({ content_deployment_platforms: arr });
+                            }}
+                            placeholder="Medium"
+                          />
+                        </Field>
+                        <Field label="Count">
+                          <NumberInput
+                            value={row.count}
+                            onChange={(v) => {
+                              const arr = [...(p.content_deployment_platforms || [])];
+                              arr[i] = { ...arr[i], count: v };
+                              update({ content_deployment_platforms: arr });
+                            }}
+                            placeholder="0"
+                          />
+                        </Field>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      update({
+                        content_deployment_platforms: [
+                          ...(p.content_deployment_platforms || []),
+                          { platform: "", count: undefined },
+                        ],
+                      })
+                    }
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent-border)] transition-all w-full justify-center"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    Add platform
+                  </button>
+                </div>
+              </div>
+            )}
           </Section>
 
           {/* Distribution */}
           <Section id="distribution" title="Distribution">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {[
-                { label: "X Reach", key: "x_reach" as const, urlKey: "x_reach_url" as const, placeholder: "https://x.com/..." },
-                { label: "Reddit Reach", key: "reddit_reach" as const, urlKey: "reddit_reach_url" as const, placeholder: "https://reddit.com/..." },
-                { label: "Discord Reach", key: "discord_reach" as const, urlKey: "discord_reach_url" as const, placeholder: "https://discord.com/channels/..." },
-                { label: "Telegram Reach", key: "telegram_reach" as const, urlKey: "telegram_reach_url" as const, placeholder: "https://t.me/..." },
-                { label: "Email Reach", key: "email_reach" as const, urlKey: "email_reach_url" as const, placeholder: "https://mailchi.mp/..." },
-              ].map(({ label, key, urlKey, placeholder }) => (
-                <StatCard key={key} label={label}>
-                  <div className="space-y-2">
-                    <NumberInput
-                      value={p[key] as number | undefined}
-                      onChange={(v) => update({ [key]: v })}
-                      placeholder="0"
-                    />
-                    <Input
-                      value={(p[urlKey] as string | undefined) || ""}
-                      onChange={(v) => update({ [urlKey]: v })}
-                      placeholder={placeholder}
-                    />
-                  </div>
-                </StatCard>
-              ))}
-            </div>
-          </Section>
-
-          {/* Engagement */}
-          <Section id="engagement" title="Engagement">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { label: "Likes", key: "likes" as const },
-                { label: "Comments", key: "comments" as const },
-                { label: "Shares", key: "shares" as const },
-                { label: "Clicks", key: "clicks" as const },
-              ].map(({ label, key }) => (
-                <StatCard key={key} label={label}>
-                  <NumberInput
-                    value={p[key] as number | undefined}
-                    onChange={(v) => update({ [key]: v })}
-                    placeholder="0"
-                  />
-                </StatCard>
-              ))}
-            </div>
+            <label className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] cursor-pointer hover:border-[var(--accent-border-sm)] transition-all mb-4">
+              <div
+                className={`w-10 h-6 rounded-full transition-colors relative ${
+                  p.distribution_enabled !== false ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    p.distribution_enabled !== false ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+                <input
+                  type="checkbox"
+                  checked={p.distribution_enabled !== false}
+                  onChange={(e) => update({ distribution_enabled: e.target.checked })}
+                  className="sr-only"
+                />
+              </div>
+              <span className="text-sm text-[var(--text-secondary)]">Include Distribution section</span>
+            </label>
+            {p.distribution_enabled !== false && (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">
+                    Distribution Platforms
+                  </p>
+                  {(p.distribution_channels || []).map((row, i) => (
+                    <div
+                      key={i}
+                      className="rounded-xl border border-[var(--border-strong)] bg-[var(--bg-base)] p-3 space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                          Platform #{i + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            update({
+                              distribution_channels: (p.distribution_channels || []).filter((_, j) => j !== i),
+                            })
+                          }
+                          className="text-xs text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors px-2 py-1 rounded-lg hover:bg-[var(--danger-bg)]"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-3">
+                        <Field label="Platform Name">
+                          <Input
+                            value={row.platform || ""}
+                            onChange={(v) => {
+                              const arr = [...(p.distribution_channels || [])];
+                              arr[i] = { ...arr[i], platform: v };
+                              update({ distribution_channels: arr });
+                            }}
+                            placeholder="YouTube"
+                          />
+                        </Field>
+                        <Field label="Reach Number">
+                          <NumberInput
+                            value={row.reach}
+                            onChange={(v) => {
+                              const arr = [...(p.distribution_channels || [])];
+                              arr[i] = { ...arr[i], reach: v };
+                              update({ distribution_channels: arr });
+                            }}
+                            placeholder="0"
+                          />
+                        </Field>
+                        <Field label="Link">
+                          <Input
+                            value={row.link || ""}
+                            onChange={(v) => {
+                              const arr = [...(p.distribution_channels || [])];
+                              arr[i] = { ...arr[i], link: v };
+                              update({ distribution_channels: arr });
+                            }}
+                            placeholder="https://..."
+                          />
+                        </Field>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      update({
+                        distribution_channels: [
+                          ...(p.distribution_channels || []),
+                          { platform: "", reach: undefined, link: "" },
+                        ],
+                      })
+                    }
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent-border)] transition-all w-full justify-center"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    Add custom platform
+                  </button>
+                </div>
+              </div>
+            )}
           </Section>
 
           {/* Top Content */}
@@ -849,112 +1132,202 @@ export function ReportForm({
 
           {/* Market Impact */}
           <Section id="market-impact" title="Market Impact">
-            <p className="text-xs text-[var(--text-faint)] mb-4 flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-md bg-[var(--danger-bg)] text-[var(--danger)] font-semibold">COMPLIANCE</span>
-              Qualitative bullets only — no stock-price claims
-            </p>
-            <div className="space-y-2">
-              {(p.market_impact_bullets || []).map((bullet, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] shrink-0 mt-2.5" />
-                  <div className="flex-1">
-                    <Input
-                      value={bullet}
-                      onChange={(v) => {
-                        const arr = [...(p.market_impact_bullets || [])];
-                        arr[i] = v;
-                        update({ market_impact_bullets: arr });
-                      }}
-                      placeholder="Qualitative impact statement"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      update({
-                        market_impact_bullets: (p.market_impact_bullets || []).filter(
-                          (_, j) => j !== i
-                        ),
-                      });
-                    }}
-                    className="text-xs text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors p-1.5 rounded-lg hover:bg-[var(--danger-bg)] shrink-0"
-                  >
-                    ×
-                  </button>
+            <label className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] cursor-pointer hover:border-[var(--accent-border-sm)] transition-all mb-4">
+              <div
+                className={`w-10 h-6 rounded-full transition-colors relative ${
+                  p.market_impact_enabled !== false ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    p.market_impact_enabled !== false ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+                <input
+                  type="checkbox"
+                  checked={p.market_impact_enabled !== false}
+                  onChange={(e) => update({ market_impact_enabled: e.target.checked })}
+                  className="sr-only"
+                />
+              </div>
+              <span className="text-sm text-[var(--text-secondary)]">Include Market Impact section</span>
+            </label>
+            {p.market_impact_enabled !== false && (
+              <>
+                <p className="text-xs text-[var(--text-faint)] mb-4 flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-md bg-[var(--danger-bg)] text-[var(--danger)] font-semibold">COMPLIANCE</span>
+                  Qualitative bullets only — no stock-price claims
+                </p>
+                <div className="space-y-2">
+                  {(p.market_impact_bullets || []).map((bullet, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] shrink-0 mt-2.5" />
+                      <div className="flex-1">
+                        <Input
+                          value={bullet}
+                          onChange={(v) => {
+                            const arr = [...(p.market_impact_bullets || [])];
+                            arr[i] = v;
+                            update({ market_impact_bullets: arr });
+                          }}
+                          placeholder="Qualitative impact statement"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          update({
+                            market_impact_bullets: (p.market_impact_bullets || []).filter(
+                              (_, j) => j !== i
+                            ),
+                          });
+                        }}
+                        className="text-xs text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors p-1.5 rounded-lg hover:bg-[var(--danger-bg)] shrink-0"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                update({ market_impact_bullets: [...(p.market_impact_bullets || []), ""] })
-              }
-              className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent-border)] transition-all w-full justify-center"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              Add bullet
-            </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    update({ market_impact_bullets: [...(p.market_impact_bullets || []), ""] })
+                  }
+                  className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent-border)] transition-all w-full justify-center"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Add bullet
+                </button>
+              </>
+            )}
+          </Section>
+
+          {/* Engagement */}
+          <Section id="engagement" title="Engagement">
+            <label className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] cursor-pointer hover:border-[var(--accent-border-sm)] transition-all mb-4">
+              <div
+                className={`w-10 h-6 rounded-full transition-colors relative ${
+                  p.engagement_enabled !== false ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    p.engagement_enabled !== false ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+                <input
+                  type="checkbox"
+                  checked={p.engagement_enabled !== false}
+                  onChange={(e) => update({ engagement_enabled: e.target.checked })}
+                  className="sr-only"
+                />
+              </div>
+              <span className="text-sm text-[var(--text-secondary)]">Include Engagement section</span>
+            </label>
+            {p.engagement_enabled !== false && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: "Likes", key: "likes" as const },
+                  { label: "Comments", key: "comments" as const },
+                  { label: "Shares", key: "shares" as const },
+                  { label: "Clicks", key: "clicks" as const },
+                ].map(({ label, key }) => (
+                  <StatCard key={key} label={label}>
+                    <NumberInput
+                      value={p[key] as number | undefined}
+                      onChange={(v) => update({ [key]: v })}
+                      placeholder="0"
+                    />
+                  </StatCard>
+                ))}
+              </div>
+            )}
           </Section>
 
           {/* Next Steps */}
           <Section id="next-steps" title="Next Steps">
-            <Field label="CTA Text">
-              <Input
-                value={p.recommended_cta_text || ""}
-                onChange={(v) => update({ recommended_cta_text: v })}
-                placeholder="Recommended: Monthly Engagement ($25K)"
-              />
-            </Field>
-            <div className="mt-4 space-y-2">
-              <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">
-                Action Items
-              </p>
-              {(p.next_steps_bullets || []).map((bullet, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <span className="text-[var(--success)] text-xs font-bold shrink-0 w-5 text-center">
-                    {i + 1}.
-                  </span>
-                  <div className="flex-1">
-                    <Input
-                      value={bullet}
-                      onChange={(v) => {
-                        const arr = [...(p.next_steps_bullets || [])];
-                        arr[i] = v;
-                        update({ next_steps_bullets: arr });
-                      }}
-                      placeholder="Next step"
-                    />
-                  </div>
+            <label className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] cursor-pointer hover:border-[var(--accent-border-sm)] transition-all mb-4">
+              <div
+                className={`w-10 h-6 rounded-full transition-colors relative ${
+                  p.next_steps_enabled !== false ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    p.next_steps_enabled !== false ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+                <input
+                  type="checkbox"
+                  checked={p.next_steps_enabled !== false}
+                  onChange={(e) => update({ next_steps_enabled: e.target.checked })}
+                  className="sr-only"
+                />
+              </div>
+              <span className="text-sm text-[var(--text-secondary)]">Include Next Steps section</span>
+            </label>
+            {p.next_steps_enabled !== false && (
+              <>
+                <Field label="CTA Text">
+                  <Input
+                    value={p.recommended_cta_text || ""}
+                    onChange={(v) => update({ recommended_cta_text: v })}
+                    placeholder="Recommended: Monthly Engagement ($25K)"
+                  />
+                </Field>
+                <div className="mt-4 space-y-2">
+                  <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">
+                    Action Items
+                  </p>
+                  {(p.next_steps_bullets || []).map((bullet, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <span className="text-[var(--success)] text-xs font-bold shrink-0 w-5 text-center">
+                        {i + 1}.
+                      </span>
+                      <div className="flex-1">
+                        <Input
+                          value={bullet}
+                          onChange={(v) => {
+                            const arr = [...(p.next_steps_bullets || [])];
+                            arr[i] = v;
+                            update({ next_steps_bullets: arr });
+                          }}
+                          placeholder="Next step"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          update({
+                            next_steps_bullets: (p.next_steps_bullets || []).filter(
+                              (_, j) => j !== i
+                            ),
+                          });
+                        }}
+                        className="text-xs text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors p-1.5 rounded-lg hover:bg-[var(--danger-bg)] shrink-0"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
                   <button
                     type="button"
-                    onClick={() => {
-                      update({
-                        next_steps_bullets: (p.next_steps_bullets || []).filter(
-                          (_, j) => j !== i
-                        ),
-                      });
-                    }}
-                    className="text-xs text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors p-1.5 rounded-lg hover:bg-[var(--danger-bg)] shrink-0"
+                    onClick={() =>
+                      update({ next_steps_bullets: [...(p.next_steps_bullets || []), ""] })
+                    }
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent-border)] transition-all w-full justify-center"
                   >
-                    ×
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    Add step
                   </button>
                 </div>
-              ))}
-              <button
-                type="button"
-                onClick={() =>
-                  update({ next_steps_bullets: [...(p.next_steps_bullets || []), ""] })
-                }
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] text-xs text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent-border)] transition-all w-full justify-center"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                Add step
-              </button>
-            </div>
+              </>
+            )}
           </Section>
 
           {/* Signal Analysis */}
