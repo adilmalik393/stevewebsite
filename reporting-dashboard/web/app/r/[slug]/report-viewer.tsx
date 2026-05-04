@@ -743,6 +743,10 @@ function ReportDashboardV2({
   const hasNextStepsData =
     p.next_steps_enabled !== false &&
     ((p.recommended_cta_text || "").trim().length > 0 || (p.next_steps_bullets?.length ?? 0) > 0);
+  const hasExecutiveSummary = !!p.executive_summary_enabled;
+  const showExecKpiReach = hasExecutiveSummary && !!p.executive_total_reach_enabled;
+  const showExecKpiEngagements = hasExecutiveSummary && !!p.executive_total_engagements_enabled;
+  const showExecKpiAssets = hasExecutiveSummary && !!p.executive_assets_deployed_enabled;
 
   const channels = useMemo(() => [
     { label: "X / Threads", value: p.x_reach || 0 },
@@ -757,7 +761,11 @@ function ReportDashboardV2({
   ].filter((c) => c.value > 0).sort((a, b) => b.value - a.value), [p]);
 
   const engRate =
-    p.total_engagements && p.total_reach && p.total_reach > 0
+    showExecKpiReach &&
+    showExecKpiEngagements &&
+    p.total_engagements &&
+    p.total_reach &&
+    p.total_reach > 0
       ? ((p.total_engagements / p.total_reach) * 100).toFixed(2)
       : null;
 
@@ -829,7 +837,7 @@ function ReportDashboardV2({
           <p className="mt-3 font-mono text-sm" style={{ color: DIM }}>
             Prepared by {p.prepared_by || "EDM Media"} · EDM Signal
           </p>
-          {(p.algo_sentiment_bias || p.campaign_type) && (
+          {hasExecutiveSummary && (p.algo_sentiment_bias || p.campaign_type) && (
             <div className="mt-5 flex flex-wrap gap-3">
               {p.algo_sentiment_bias && (
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded" style={{ background: "#10B98112", border: "1px solid #10B98130" }}>
@@ -850,11 +858,11 @@ function ReportDashboardV2({
         {/* ── KPI strip ── */}
         <div className="grid grid-cols-2 md:grid-cols-5" style={{ borderBottom: LINE }}>
           {([
-            { label: "TOTAL REACH",    value: fmt(p.total_reach),    delta: null,       color: TEXT,  icon: "broadcast" },
-            { label: "ENGAGEMENTS",    value: fmt(p.total_engagements), delta: null,    color: TEXT,  icon: "chat" },
+            { label: "TOTAL REACH",    value: showExecKpiReach ? fmt(p.total_reach) : "—",    delta: null,       color: TEXT,  icon: "broadcast" },
+            { label: "ENGAGEMENTS",    value: showExecKpiEngagements ? fmt(p.total_engagements) : "—", delta: null,    color: TEXT,  icon: "chat" },
             { label: "SIGNAL SCORE",   value: `${p.signal_score_before ?? "—"} → ${p.signal_score_after ?? "—"}`, delta: scoreDelta, color: scoreDelta != null && scoreDelta >= 0 ? GREEN : scoreDelta != null ? RED : TEXT, icon: scoreDelta != null && scoreDelta >= 0 ? "trending" : "trenddown" },
             { label: "CLICKS",         value: fmt(p.clicks),          delta: null,      color: TEXT,  icon: "cursor" },
-            { label: "ASSETS",         value: fmt(p.assets_deployed ?? assetTotal), delta: null, color: TEXT, icon: "box" },
+            { label: "ASSETS",         value: showExecKpiAssets ? fmt(p.assets_deployed ?? assetTotal) : "—", delta: null, color: TEXT, icon: "box" },
           ] as { label: string; value: string; delta: number | null; color: string; icon: string }[]).map((k, i, arr) => (
             <div key={k.label} className="px-6 py-5" style={{ borderRight: i < arr.length - 1 ? LINE : "none" }}>
               <div className="flex items-center gap-1.5 mb-2.5">
@@ -1354,16 +1362,27 @@ function ReportDashboardV3({
       ? p.signal_score_after - p.signal_score_before
       : null;
 
+  const hasExecutiveSummary = !!p.executive_summary_enabled;
+  const showExecKpiReach = hasExecutiveSummary && !!p.executive_total_reach_enabled;
+  const showExecKpiEngagements = hasExecutiveSummary && !!p.executive_total_engagements_enabled;
+  const showExecKpiAssets = hasExecutiveSummary && !!p.executive_assets_deployed_enabled;
+
   const kpis = [
     {
       label: "Total Reach",
-      value: p.total_reach ? Number(p.total_reach).toLocaleString() : "—",
+      value:
+        showExecKpiReach && p.total_reach
+          ? Number(p.total_reach).toLocaleString()
+          : "—",
       delta: null,
       note: "across all channels",
     },
     {
       label: "Engagements",
-      value: p.total_engagements ? Number(p.total_engagements).toLocaleString() : "—",
+      value:
+        showExecKpiEngagements && p.total_engagements
+          ? Number(p.total_engagements).toLocaleString()
+          : "—",
       delta: null,
       note: "likes, shares, comments",
     },
@@ -1381,7 +1400,7 @@ function ReportDashboardV3({
     },
     {
       label: "Assets Deployed",
-      value: String(assetTotal),
+      value: showExecKpiAssets ? String(assetTotal) : "—",
       delta: null,
       note: "content pieces",
     },
@@ -1440,8 +1459,12 @@ function ReportDashboardV3({
           <div className="flex flex-wrap items-center gap-2">
             {isDraft && <V3Pill color="red">Draft</V3Pill>}
             <V3Pill color="gray">{campaignStart || "—"} → {campaignEnd || "—"}</V3Pill>
-            {p.algo_sentiment_bias && <V3Pill color="green">{p.algo_sentiment_bias}</V3Pill>}
-            {p.campaign_type && <V3Pill color="blue">{p.campaign_type}</V3Pill>}
+            {hasExecutiveSummary && p.algo_sentiment_bias && (
+              <V3Pill color="green">{p.algo_sentiment_bias}</V3Pill>
+            )}
+            {hasExecutiveSummary && p.campaign_type && (
+              <V3Pill color="blue">{p.campaign_type}</V3Pill>
+            )}
           </div>
         </header>
 
@@ -1503,11 +1526,17 @@ function ReportDashboardV3({
             chips.push({ icon: scoreDelta >= 0 ? "↑" : "↓", text: `Signal score ${scoreDelta >= 0 ? "improved" : "dropped"} by ${Math.abs(scoreDelta)} points`, color: scoreDelta >= 0 ? "green" : "red" });
           if (p.x_threads && p.x_threads > (p.reddit_posts || 0) && p.x_threads > (p.articles || 0))
             chips.push({ icon: "✕", text: "X / Threads is your top distribution channel", color: "blue" });
-          if (p.emails != null && p.emails > 0 && (p.total_reach || 0) > 0 && p.emails / (p.total_reach || 1) < 0.05)
+          if (
+            showExecKpiReach &&
+            p.emails != null &&
+            p.emails > 0 &&
+            (p.total_reach || 0) > 0 &&
+            p.emails / (p.total_reach || 1) < 0.05
+          )
             chips.push({ icon: "✉", text: "Email reach is below 5% — consider scaling newsletters", color: "red" });
           if (p.ppc_enabled && (p.ctr || 0) > 2)
             chips.push({ icon: "⚡", text: `Strong PPC click-through rate of ${p.ctr}%`, color: "green" });
-          if (assetTotal >= 20)
+          if (showExecKpiAssets && assetTotal >= 20)
             chips.push({ icon: "📦", text: `High content volume: ${assetTotal} assets deployed`, color: "blue" });
           return chips.length > 0 ? (
             <section>
@@ -1868,9 +1897,6 @@ function ReportDashboardV4({
   payload: ReportPayload;
   interactiveSlideIndex?: number;
 }) {
-  const showSlide = (deckIndex: number) =>
-    interactiveSlideIndex === undefined || interactiveSlideIndex === deckIndex;
-
   const assetTotal =
     (p.x_threads || 0) + (p.reddit_posts || 0) + (p.videos || 0) +
     (p.articles || 0) + (p.emails || 0) + (p.push_notifications || 0) +
@@ -1882,8 +1908,27 @@ function ReportDashboardV4({
       : null;
 
   const hasAmp = !!(p.ppc_enabled || p.influencer_enabled);
-  /** Cover + deck; Section 3 is two slides (factor scores, then score overview) per client template. */
-  const totalSlides = 11 + (hasAmp ? 1 : 0);
+  const showExecKpiReach = !!p.executive_summary_enabled && !!p.executive_total_reach_enabled;
+  const showExecKpiEngagements = !!p.executive_summary_enabled && !!p.executive_total_engagements_enabled;
+  const showExecKpiAssets = !!p.executive_summary_enabled && !!p.executive_assets_deployed_enabled;
+  const v4PhysicalIndices = useMemo(() => {
+    const hasExec = !!p.executive_summary_enabled;
+    const indices: number[] = [0];
+    if (hasExec) indices.push(1, 2);
+    indices.push(3, 4, 5, 6, 7);
+    if (hasAmp) indices.push(8);
+    if (hasAmp) indices.push(9, 10, 11);
+    else indices.push(8, 9, 10);
+    return indices;
+  }, [p.ppc_enabled, p.influencer_enabled, p.executive_summary_enabled]);
+
+  const totalSlides = v4PhysicalIndices.length;
+  const slidePos = (deckIndex: number) => v4PhysicalIndices.indexOf(deckIndex) + 1;
+  const showSlide = (deckIndex: number) => {
+    if (v4PhysicalIndices.indexOf(deckIndex) === -1) return false;
+    if (interactiveSlideIndex === undefined) return true;
+    return v4PhysicalIndices[interactiveSlideIndex] === deckIndex;
+  };
 
   const prBullets = p.message_improvement_notes || p.pr_score_bullets || [];
   const prRewritePairs = p.pr_rewrite_pairs || [];
@@ -1967,7 +2012,7 @@ function ReportDashboardV4({
       {showSlide(1) ? (
       <V4DeckSlide
         deckIndex={1}
-        slide={2}
+        slide={slidePos(1)}
         total={totalSlides}
         sectionLabel="Section 1 · Executive summary"
         title="Executive Summary"
@@ -1976,10 +2021,12 @@ function ReportDashboardV4({
           Lead with the outcome, what changed, and why the campaign mattered now — reach, signal movement, and content volume.
         </p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 flex-1 content-start">
-          <KpiCard label="Total Reach" value={fmt(p.total_reach)} hero />
-          <KpiCard label="Engagements" value={fmt(p.total_engagements)} color="#7B61FF" hero />
+          {showExecKpiReach && <KpiCard label="Total Reach" value={fmt(p.total_reach)} hero />}
+          {showExecKpiEngagements && (
+            <KpiCard label="Engagements" value={fmt(p.total_engagements)} color="#7B61FF" hero />
+          )}
           <KpiCard label="Signal Score" value={`${fmt(p.signal_score_before)} → ${fmt(p.signal_score_after)}`} color="#00FF9D" compact />
-          <KpiCard label="Assets Deployed" value={fmt(assetTotal)} compact />
+          {showExecKpiAssets && <KpiCard label="Assets Deployed" value={fmt(assetTotal)} compact />}
         </div>
       </V4DeckSlide>
       ) : null}
@@ -1987,7 +2034,7 @@ function ReportDashboardV4({
       {showSlide(2) ? (
       <V4DeckSlide
         deckIndex={2}
-        slide={3}
+        slide={slidePos(2)}
         total={totalSlides}
         sectionLabel="Section 2 · Campaign overview"
         title="Campaign Overview"
@@ -2008,7 +2055,7 @@ function ReportDashboardV4({
       {showSlide(3) ? (
       <V4DeckSlide
         deckIndex={3}
-        slide={4}
+        slide={slidePos(3)}
         total={totalSlides}
         sectionLabel="Section 3 · Signal score analysis"
         title="Factor scores"
@@ -2028,7 +2075,7 @@ function ReportDashboardV4({
       {showSlide(4) ? (
       <V4DeckSlide
         deckIndex={4}
-        slide={5}
+        slide={slidePos(4)}
         total={totalSlides}
         sectionLabel="Section 3 · Signal score analysis"
         title="Signal score overview"
@@ -2059,7 +2106,7 @@ function ReportDashboardV4({
       {showSlide(5) ? (
       <V4DeckSlide
         deckIndex={5}
-        slide={6}
+        slide={slidePos(5)}
         total={totalSlides}
         sectionLabel="Section 4 · PR rewrite & message upgrade"
         title="PR Rewrite & Message Upgrade"
@@ -2107,7 +2154,7 @@ function ReportDashboardV4({
       {showSlide(6) ? (
       <V4DeckSlide
         deckIndex={6}
-        slide={7}
+        slide={slidePos(6)}
         total={totalSlides}
         sectionLabel="Section 5 · Content pack summary"
         title="Content Pack Summary"
@@ -2124,7 +2171,7 @@ function ReportDashboardV4({
       {showSlide(7) ? (
       <V4DeckSlide
         deckIndex={7}
-        slide={8}
+        slide={slidePos(7)}
         total={totalSlides}
         sectionLabel="Section 6 · Distribution strategy"
         title="Distribution Strategy"
@@ -2141,7 +2188,7 @@ function ReportDashboardV4({
       {hasAmp && showSlide(8) ? (
         <V4DeckSlide
           deckIndex={8}
-          slide={9}
+          slide={slidePos(8)}
           total={totalSlides}
           sectionLabel="Section 7 · Amplification strategy"
           title="Amplification Strategy"
@@ -2175,15 +2222,29 @@ function ReportDashboardV4({
       {showSlide(hasAmp ? 9 : 8) ? (
       <V4DeckSlide
         deckIndex={hasAmp ? 9 : 8}
-        slide={hasAmp ? 10 : 9}
+        slide={slidePos(hasAmp ? 9 : 8)}
         total={totalSlides}
         sectionLabel={hasAmp ? "Section 8 · Narrative control" : "Section 8 · Narrative control"}
         title="Narrative Control"
       >
         <div className="grid md:grid-cols-3 gap-3 md:gap-4 flex-1 content-start">
           {[
-            { phase: "Phase 1", title: "Awareness", detail: p.campaign_type || "How the campaign introduced the story and why it mattered now." },
-            { phase: "Phase 2", title: "Validation", detail: p.algo_sentiment_bias || "Proof points that reinforced credibility and execution." },
+            {
+              phase: "Phase 1",
+              title: "Awareness",
+              detail:
+                !p.executive_summary_enabled
+                  ? "How the campaign introduced the story and why it mattered now."
+                  : p.campaign_type || "How the campaign introduced the story and why it mattered now.",
+            },
+            {
+              phase: "Phase 2",
+              title: "Validation",
+              detail:
+                !p.executive_summary_enabled
+                  ? "Proof points that reinforced credibility and execution."
+                  : p.algo_sentiment_bias || "Proof points that reinforced credibility and execution.",
+            },
             { phase: "Phase 3", title: "Momentum", detail: p.recommended_cta_text || "How attention extends into the next cadence or announcement." },
           ].map((row, i) => (
             <div
@@ -2203,7 +2264,7 @@ function ReportDashboardV4({
       {showSlide(hasAmp ? 10 : 9) ? (
       <V4DeckSlide
         deckIndex={hasAmp ? 10 : 9}
-        slide={hasAmp ? 11 : 10}
+        slide={slidePos(hasAmp ? 10 : 9)}
         total={totalSlides}
         sectionLabel={hasAmp ? "Section 9 · Campaign results" : "Section 9 · Campaign results"}
         title="Campaign Results Dashboard"
@@ -2221,7 +2282,7 @@ function ReportDashboardV4({
       {showSlide(hasAmp ? 11 : 10) ? (
       <V4DeckSlide
         deckIndex={hasAmp ? 11 : 10}
-        slide={hasAmp ? 12 : 11}
+        slide={slidePos(hasAmp ? 11 : 10)}
         total={totalSlides}
         sectionLabel={hasAmp ? "Section 10 · Strategic recommendations" : "Section 10 · Strategic recommendations"}
         title="Strategic Recommendations"
@@ -2301,10 +2362,11 @@ export function ReportViewer({
   const currentSlideRef = useRef(currentSlide);
   currentSlideRef.current = currentSlide;
 
-  const v4DeckCount = useMemo(
-    () => 11 + (p.ppc_enabled || p.influencer_enabled ? 1 : 0),
-    [p.ppc_enabled, p.influencer_enabled]
-  );
+  const v4DeckCount = useMemo(() => {
+    const hasAmp = !!(p.ppc_enabled || p.influencer_enabled);
+    const hasExec = !!p.executive_summary_enabled;
+    return 11 + (hasAmp ? 1 : 0) - (hasExec ? 0 : 2);
+  }, [p.ppc_enabled, p.influencer_enabled, p.executive_summary_enabled]);
 
   const switchView = useCallback((index: number) => {
     const target = Math.max(0, Math.min(index, 3));
@@ -2436,6 +2498,19 @@ export function ReportViewer({
   const hasNextStepsData =
     p.next_steps_enabled !== false &&
     ((p.recommended_cta_text || "").trim().length > 0 || (p.next_steps_bullets?.length ?? 0) > 0);
+  const hasExecutiveSummary = !!p.executive_summary_enabled;
+  const showExecKpiReach = hasExecutiveSummary && !!p.executive_total_reach_enabled;
+  const showExecKpiEngagements = hasExecutiveSummary && !!p.executive_total_engagements_enabled;
+  const showExecKpiAssets = hasExecutiveSummary && !!p.executive_assets_deployed_enabled;
+
+  /** Report 1 page 2: only mount when at least one §7–§10-related block has editor data (avoid empty “7–10” chrome). */
+  const hasReport1ExtendedContent =
+    (p.top_content?.length ?? 0) > 0 ||
+    !!(p.ppc_enabled || p.influencer_enabled) ||
+    hasMarketImpactData ||
+    hasNextStepsData ||
+    !!(p.x_post_url || p.instagram_url || p.tiktok_url || p.stocktwits_post || p.linkedin_post || p.reddit_post) ||
+    (p.next_pr_bullets?.length ?? 0) > 0;
 
   return (
     <div className="relative min-h-screen bg-[#060A0F] text-white font-[family-name:var(--font-inter)] selection:bg-[#00E5FF]/20">
@@ -2633,7 +2708,7 @@ export function ReportViewer({
                       </p>
                     )}
                     <p className="text-xs text-[#3A4452]">Prepared by {p.prepared_by || "EDM Media"}</p>
-                    {(p.algo_sentiment_bias || p.campaign_type) && (
+                    {hasExecutiveSummary && (p.algo_sentiment_bias || p.campaign_type) && (
                       <div className="flex flex-wrap gap-1.5 mt-1 justify-end">
                         {p.algo_sentiment_bias && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#00FF9D]/10 border border-[#00FF9D]/25 text-[#00FF9D]">
@@ -2651,6 +2726,8 @@ export function ReportViewer({
                 </div>
               </header>
 
+              {hasExecutiveSummary && (
+                <>
               {/* ── Section label ── */}
               <div className="flex items-center gap-3">
                 <div
@@ -2665,8 +2742,10 @@ export function ReportViewer({
 
               {/* ── Hero KPI strip (template §1 — core outcome metrics) ── */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-                <KpiCard label="Total reach" value={fmt(p.total_reach)} hero />
-                <KpiCard label="Engagements" value={fmt(p.total_engagements)} color="#7B61FF" hero />
+                {showExecKpiReach && <KpiCard label="Total reach" value={fmt(p.total_reach)} hero />}
+                {showExecKpiEngagements && (
+                  <KpiCard label="Engagements" value={fmt(p.total_engagements)} color="#7B61FF" hero />
+                )}
                 {hasSignalScoreData && (
                   <KpiCard
                     label="Signal score"
@@ -2675,11 +2754,15 @@ export function ReportViewer({
                     compact
                   />
                 )}
-                {hasContentDeploymentData && (
+                {showExecKpiAssets && (
                   <KpiCard label="Assets deployed" value={fmt(p.assets_deployed ?? assetTotal)} compact />
                 )}
               </div>
+                </>
+              )}
 
+              {hasExecutiveSummary && (
+                <>
               {/* ── 2. Campaign overview (template §2) ── */}
               <div className="flex items-center gap-3 pt-2">
                 <div
@@ -2699,6 +2782,8 @@ export function ReportViewer({
                   <p className="text-sm md:text-base text-[#C5D0E0] leading-relaxed">{p.algo_sentiment_bias || "—"}</p>
                 </SectionCard>
               </div>
+                </>
+              )}
 
               {(hasSignalScoreData || hasDistributionData) && (
                 <>
@@ -2890,6 +2975,7 @@ export function ReportViewer({
         </div>
 
         {/* ════════════════════ PAGE 2 ════════════════════ */}
+        {hasReport1ExtendedContent ? (
         <div id="extended">
           <Slide className="justify-start py-10 md:py-12">
             <div className="max-w-6xl mx-auto w-full space-y-7">
@@ -3098,6 +3184,7 @@ export function ReportViewer({
             </div>
           </Slide>
         </div>
+        ) : null}
         </>
         ) : currentSlide === 1 ? (
           <ReportDashboardV2

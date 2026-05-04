@@ -226,6 +226,14 @@ export interface ReportPayload {
   // Cover
   prepared_by?: string;
   // Executive Summary
+  /** When true, executive summary and related report surfaces are shown. Omitted defaults to off. */
+  executive_summary_enabled?: boolean;
+  /** Opt-in: show Total Reach in the executive KPI strip. Omitted defaults to off. */
+  executive_total_reach_enabled?: boolean;
+  /** Opt-in: show Total Engagements in the executive KPI strip. Omitted defaults to off. */
+  executive_total_engagements_enabled?: boolean;
+  /** Opt-in: show Assets Deployed in the executive KPI strip. Omitted defaults to off. */
+  executive_assets_deployed_enabled?: boolean;
   total_reach?: number;
   total_engagements?: number;
   signal_score_before?: number;

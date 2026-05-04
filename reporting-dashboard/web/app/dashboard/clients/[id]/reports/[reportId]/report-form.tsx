@@ -285,6 +285,10 @@ export function ReportForm({
   const [meta, setMeta] = useState(initialMeta);
   const [p, setP] = useState<ReportPayload>({
     prepared_by: "EDM Media",
+    executive_summary_enabled: false,
+    executive_total_reach_enabled: false,
+    executive_total_engagements_enabled: false,
+    executive_assets_deployed_enabled: false,
     signal_score_enabled: false,
     content_deployment_enabled: false,
     distribution_enabled: false,
@@ -492,6 +496,28 @@ export function ReportForm({
 
           {/* Executive Summary */}
           <Section id="executive-summary" title="Executive Summary">
+            <label className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] cursor-pointer hover:border-[var(--accent-border-sm)] transition-all mb-4">
+              <div
+                className={`w-10 h-6 rounded-full transition-colors relative ${
+                  p.executive_summary_enabled ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    p.executive_summary_enabled ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+                <input
+                  type="checkbox"
+                  checked={!!p.executive_summary_enabled}
+                  onChange={(e) => update({ executive_summary_enabled: e.target.checked })}
+                  className="sr-only"
+                />
+              </div>
+              <span className="text-sm text-[var(--text-secondary)]">Include Executive Summary section</span>
+            </label>
+            {p.executive_summary_enabled && (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <Field label="Algo Sentiment Bias">
                 <Input
@@ -508,29 +534,103 @@ export function ReportForm({
                 />
               </Field>
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <StatCard label="Total Reach">
-                <NumberInput
-                  value={p.total_reach}
-                  onChange={(v) => update({ total_reach: v })}
-                  placeholder="0"
-                />
-              </StatCard>
-              <StatCard label="Total Engagements">
-                <NumberInput
-                  value={p.total_engagements}
-                  onChange={(v) => update({ total_engagements: v })}
-                  placeholder="0"
-                />
-              </StatCard>
-              <StatCard label="Assets Deployed">
-                <NumberInput
-                  value={p.assets_deployed}
-                  onChange={(v) => update({ assets_deployed: v })}
-                  placeholder="0"
-                />
-              </StatCard>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <span
+                    className={`relative inline-flex h-6 w-10 shrink-0 rounded-full transition-colors ${
+                      p.executive_total_reach_enabled ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!p.executive_total_reach_enabled}
+                      onChange={(e) => update({ executive_total_reach_enabled: e.target.checked })}
+                      className="peer sr-only"
+                    />
+                    <span
+                      className={`pointer-events-none absolute top-1 left-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                        p.executive_total_reach_enabled ? "translate-x-5" : "translate-x-1"
+                      }`}
+                    />
+                  </span>
+                  <span className="text-xs text-[var(--text-secondary)]">Include in report</span>
+                </label>
+                {p.executive_total_reach_enabled && (
+                  <StatCard label="Total Reach">
+                    <NumberInput
+                      value={p.total_reach}
+                      onChange={(v) => update({ total_reach: v })}
+                      placeholder="0"
+                    />
+                  </StatCard>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <span
+                    className={`relative inline-flex h-6 w-10 shrink-0 rounded-full transition-colors ${
+                      p.executive_total_engagements_enabled ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!p.executive_total_engagements_enabled}
+                      onChange={(e) => update({ executive_total_engagements_enabled: e.target.checked })}
+                      className="peer sr-only"
+                    />
+                    <span
+                      className={`pointer-events-none absolute top-1 left-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                        p.executive_total_engagements_enabled ? "translate-x-5" : "translate-x-1"
+                      }`}
+                    />
+                  </span>
+                  <span className="text-xs text-[var(--text-secondary)]">Include in report</span>
+                </label>
+                {p.executive_total_engagements_enabled && (
+                  <StatCard label="Total Engagements">
+                    <NumberInput
+                      value={p.total_engagements}
+                      onChange={(v) => update({ total_engagements: v })}
+                      placeholder="0"
+                    />
+                  </StatCard>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <span
+                    className={`relative inline-flex h-6 w-10 shrink-0 rounded-full transition-colors ${
+                      p.executive_assets_deployed_enabled ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!p.executive_assets_deployed_enabled}
+                      onChange={(e) => update({ executive_assets_deployed_enabled: e.target.checked })}
+                      className="peer sr-only"
+                    />
+                    <span
+                      className={`pointer-events-none absolute top-1 left-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                        p.executive_assets_deployed_enabled ? "translate-x-5" : "translate-x-1"
+                      }`}
+                    />
+                  </span>
+                  <span className="text-xs text-[var(--text-secondary)]">Include in report</span>
+                </label>
+                {p.executive_assets_deployed_enabled && (
+                  <StatCard label="Assets Deployed">
+                    <NumberInput
+                      value={p.assets_deployed}
+                      onChange={(v) => update({ assets_deployed: v })}
+                      placeholder="0"
+                    />
+                  </StatCard>
+                )}
+              </div>
             </div>
+            </>
+            )}
           </Section>
 
           {/* Signal Score */}
