@@ -203,6 +203,10 @@ function ChannelMixDonut({ payload: p }: { payload: ReportPayload }) {
     { label: "Discord", value: p.discord_reach || 0 },
     { label: "Telegram", value: p.telegram_reach || 0 },
     { label: "Email", value: p.email_reach || 0 },
+    ...(p.distribution_channels || []).map((row) => ({
+      label: row.platform || "Custom Platform",
+      value: row.reach || 0,
+    })),
   ]
     .filter((s) => s.value > 0)
     .map((s) => ({ ...s, color: COLORS[s.label] ?? "#8B9AAF" }));
@@ -316,7 +320,13 @@ function ReachBars({ payload: p }: { payload: ReportPayload }) {
     { label: "Discord", value: p.discord_reach || 0, color: "#00FF9D", url: p.discord_reach_url },
     { label: "Telegram", value: p.telegram_reach || 0, color: "#FF6B6B", url: p.telegram_reach_url },
     { label: "Email", value: p.email_reach || 0, color: "#94A3B8", url: p.email_reach_url },
-  ];
+    ...(p.distribution_channels || []).map((row, i) => ({
+      label: row.platform || `Custom ${i + 1}`,
+      value: row.reach || 0,
+      color: "#38BDF8",
+      url: row.link || "",
+    })),
+  ].filter((row) => row.value > 0);
   const max = Math.max(...rows.map((r) => r.value), 1);
   return (
     <div className="space-y-4">
@@ -370,7 +380,12 @@ function AssetBars({ payload: p, total }: { payload: ReportPayload; total: numbe
     { label: "Articles", value: p.articles || 0, color: "#F59E0B" },
     { label: "Emails", value: p.emails || 0, color: "#94A3B8" },
     { label: "Push notifications", value: p.push_notifications || 0, color: "#FF6B6B" },
-  ];
+    ...(p.content_deployment_platforms || []).map((row, i) => ({
+      label: row.platform || `Custom ${i + 1}`,
+      value: row.count || 0,
+      color: "#38BDF8",
+    })),
+  ].filter((asset) => asset.value > 0);
   const max = Math.max(...assets.map((a) => a.value), 1);
   return (
     <div className="space-y-3.5">
@@ -692,12 +707,46 @@ function ReportDashboardV2({
 }) {
   const assetTotal =
     (p.x_threads || 0) + (p.reddit_posts || 0) + (p.videos || 0) +
-    (p.articles || 0) + (p.emails || 0) + (p.push_notifications || 0);
+    (p.articles || 0) + (p.emails || 0) + (p.push_notifications || 0) +
+    (p.content_deployment_platforms || []).reduce((sum, row) => sum + (row.count || 0), 0);
 
   const scoreDelta =
     p.signal_score_after != null && p.signal_score_before != null
       ? p.signal_score_after - p.signal_score_before
       : null;
+  const hasSignalScoreData =
+    p.signal_score_enabled !== false &&
+    [
+      p.signal_score_before,
+      p.signal_score_after,
+      p.execution_before,
+      p.execution_after,
+      p.clarity_before,
+      p.clarity_after,
+      p.distribution_before,
+      p.distribution_after,
+      p.engagement_axis_before,
+      p.engagement_axis_after,
+    ].some((v) => (v || 0) > 0);
+  const hasContentDeploymentData = p.content_deployment_enabled !== false && assetTotal > 0;
+  const hasDistributionData =
+    p.distribution_enabled !== false &&
+    (
+      (p.x_reach || 0) + (p.reddit_reach || 0) + (p.discord_reach || 0) + (p.telegram_reach || 0) + (p.email_reach || 0) +
+      (p.distribution_channels || []).reduce((sum, row) => sum + (row.reach || 0), 0)
+    ) > 0;
+  const hasEngagementData =
+    p.engagement_enabled !== false &&
+    ((p.likes || 0) + (p.comments || 0) + (p.shares || 0) + (p.clicks || 0) > 0);
+  const hasMarketImpactData =
+    p.market_impact_enabled !== false && (p.market_impact_bullets?.length ?? 0) > 0;
+  const hasNextStepsData =
+    p.next_steps_enabled !== false &&
+    ((p.recommended_cta_text || "").trim().length > 0 || (p.next_steps_bullets?.length ?? 0) > 0);
+  const hasExecutiveSummary = !!p.executive_summary_enabled;
+  const showExecKpiReach = hasExecutiveSummary && !!p.executive_total_reach_enabled;
+  const showExecKpiEngagements = hasExecutiveSummary && !!p.executive_total_engagements_enabled;
+  const showExecKpiAssets = hasExecutiveSummary && !!p.executive_assets_deployed_enabled;
 
   const channels = useMemo(() => [
     { label: "X / Threads", value: p.x_reach || 0 },
@@ -705,10 +754,18 @@ function ReportDashboardV2({
     { label: "Discord",      value: p.discord_reach || 0 },
     { label: "Telegram",     value: p.telegram_reach || 0 },
     { label: "Email",        value: p.email_reach || 0 },
+    ...(p.distribution_channels || []).map((row, i) => ({
+      label: row.platform || `Custom ${i + 1}`,
+      value: row.reach || 0,
+    })),
   ].filter((c) => c.value > 0).sort((a, b) => b.value - a.value), [p]);
 
   const engRate =
-    p.total_engagements && p.total_reach && p.total_reach > 0
+    showExecKpiReach &&
+    showExecKpiEngagements &&
+    p.total_engagements &&
+    p.total_reach &&
+    p.total_reach > 0
       ? ((p.total_engagements / p.total_reach) * 100).toFixed(2)
       : null;
 
@@ -780,7 +837,7 @@ function ReportDashboardV2({
           <p className="mt-3 font-mono text-sm" style={{ color: DIM }}>
             Prepared by {p.prepared_by || "EDM Media"} · EDM Signal
           </p>
-          {(p.algo_sentiment_bias || p.campaign_type) && (
+          {hasExecutiveSummary && (p.algo_sentiment_bias || p.campaign_type) && (
             <div className="mt-5 flex flex-wrap gap-3">
               {p.algo_sentiment_bias && (
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded" style={{ background: "#10B98112", border: "1px solid #10B98130" }}>
@@ -801,11 +858,11 @@ function ReportDashboardV2({
         {/* ── KPI strip ── */}
         <div className="grid grid-cols-2 md:grid-cols-5" style={{ borderBottom: LINE }}>
           {([
-            { label: "TOTAL REACH",    value: fmt(p.total_reach),    delta: null,       color: TEXT,  icon: "broadcast" },
-            { label: "ENGAGEMENTS",    value: fmt(p.total_engagements), delta: null,    color: TEXT,  icon: "chat" },
+            { label: "TOTAL REACH",    value: showExecKpiReach ? fmt(p.total_reach) : "—",    delta: null,       color: TEXT,  icon: "broadcast" },
+            { label: "ENGAGEMENTS",    value: showExecKpiEngagements ? fmt(p.total_engagements) : "—", delta: null,    color: TEXT,  icon: "chat" },
             { label: "SIGNAL SCORE",   value: `${p.signal_score_before ?? "—"} → ${p.signal_score_after ?? "—"}`, delta: scoreDelta, color: scoreDelta != null && scoreDelta >= 0 ? GREEN : scoreDelta != null ? RED : TEXT, icon: scoreDelta != null && scoreDelta >= 0 ? "trending" : "trenddown" },
             { label: "CLICKS",         value: fmt(p.clicks),          delta: null,      color: TEXT,  icon: "cursor" },
-            { label: "ASSETS",         value: fmt(p.assets_deployed ?? assetTotal), delta: null, color: TEXT, icon: "box" },
+            { label: "ASSETS",         value: showExecKpiAssets ? fmt(p.assets_deployed ?? assetTotal) : "—", delta: null, color: TEXT, icon: "box" },
           ] as { label: string; value: string; delta: number | null; color: string; icon: string }[]).map((k, i, arr) => (
             <div key={k.label} className="px-6 py-5" style={{ borderRight: i < arr.length - 1 ? LINE : "none" }}>
               <div className="flex items-center gap-1.5 mb-2.5">
@@ -1297,23 +1354,35 @@ function ReportDashboardV3({
 }) {
   const assetTotal =
     (p.x_threads || 0) + (p.reddit_posts || 0) + (p.videos || 0) +
-    (p.articles || 0) + (p.emails || 0) + (p.push_notifications || 0);
+    (p.articles || 0) + (p.emails || 0) + (p.push_notifications || 0) +
+    (p.content_deployment_platforms || []).reduce((sum, row) => sum + (row.count || 0), 0);
 
   const scoreDelta =
     p.signal_score_after != null && p.signal_score_before != null
       ? p.signal_score_after - p.signal_score_before
       : null;
 
+  const hasExecutiveSummary = !!p.executive_summary_enabled;
+  const showExecKpiReach = hasExecutiveSummary && !!p.executive_total_reach_enabled;
+  const showExecKpiEngagements = hasExecutiveSummary && !!p.executive_total_engagements_enabled;
+  const showExecKpiAssets = hasExecutiveSummary && !!p.executive_assets_deployed_enabled;
+
   const kpis = [
     {
       label: "Total Reach",
-      value: p.total_reach ? Number(p.total_reach).toLocaleString() : "—",
+      value:
+        showExecKpiReach && p.total_reach
+          ? Number(p.total_reach).toLocaleString()
+          : "—",
       delta: null,
       note: "across all channels",
     },
     {
       label: "Engagements",
-      value: p.total_engagements ? Number(p.total_engagements).toLocaleString() : "—",
+      value:
+        showExecKpiEngagements && p.total_engagements
+          ? Number(p.total_engagements).toLocaleString()
+          : "—",
       delta: null,
       note: "likes, shares, comments",
     },
@@ -1331,7 +1400,7 @@ function ReportDashboardV3({
     },
     {
       label: "Assets Deployed",
-      value: String(assetTotal),
+      value: showExecKpiAssets ? String(assetTotal) : "—",
       delta: null,
       note: "content pieces",
     },
@@ -1390,8 +1459,12 @@ function ReportDashboardV3({
           <div className="flex flex-wrap items-center gap-2">
             {isDraft && <V3Pill color="red">Draft</V3Pill>}
             <V3Pill color="gray">{campaignStart || "—"} → {campaignEnd || "—"}</V3Pill>
-            {p.algo_sentiment_bias && <V3Pill color="green">{p.algo_sentiment_bias}</V3Pill>}
-            {p.campaign_type && <V3Pill color="blue">{p.campaign_type}</V3Pill>}
+            {hasExecutiveSummary && p.algo_sentiment_bias && (
+              <V3Pill color="green">{p.algo_sentiment_bias}</V3Pill>
+            )}
+            {hasExecutiveSummary && p.campaign_type && (
+              <V3Pill color="blue">{p.campaign_type}</V3Pill>
+            )}
           </div>
         </header>
 
@@ -1453,11 +1526,17 @@ function ReportDashboardV3({
             chips.push({ icon: scoreDelta >= 0 ? "↑" : "↓", text: `Signal score ${scoreDelta >= 0 ? "improved" : "dropped"} by ${Math.abs(scoreDelta)} points`, color: scoreDelta >= 0 ? "green" : "red" });
           if (p.x_threads && p.x_threads > (p.reddit_posts || 0) && p.x_threads > (p.articles || 0))
             chips.push({ icon: "✕", text: "X / Threads is your top distribution channel", color: "blue" });
-          if (p.emails != null && p.emails > 0 && (p.total_reach || 0) > 0 && p.emails / (p.total_reach || 1) < 0.05)
+          if (
+            showExecKpiReach &&
+            p.emails != null &&
+            p.emails > 0 &&
+            (p.total_reach || 0) > 0 &&
+            p.emails / (p.total_reach || 1) < 0.05
+          )
             chips.push({ icon: "✉", text: "Email reach is below 5% — consider scaling newsletters", color: "red" });
           if (p.ppc_enabled && (p.ctr || 0) > 2)
             chips.push({ icon: "⚡", text: `Strong PPC click-through rate of ${p.ctr}%`, color: "green" });
-          if (assetTotal >= 20)
+          if (showExecKpiAssets && assetTotal >= 20)
             chips.push({ icon: "📦", text: `High content volume: ${assetTotal} assets deployed`, color: "blue" });
           return chips.length > 0 ? (
             <section>
@@ -1818,12 +1897,10 @@ function ReportDashboardV4({
   payload: ReportPayload;
   interactiveSlideIndex?: number;
 }) {
-  const showSlide = (deckIndex: number) =>
-    interactiveSlideIndex === undefined || interactiveSlideIndex === deckIndex;
-
   const assetTotal =
     (p.x_threads || 0) + (p.reddit_posts || 0) + (p.videos || 0) +
-    (p.articles || 0) + (p.emails || 0) + (p.push_notifications || 0);
+    (p.articles || 0) + (p.emails || 0) + (p.push_notifications || 0) +
+    (p.content_deployment_platforms || []).reduce((sum, row) => sum + (row.count || 0), 0);
 
   const scoreDelta =
     p.signal_score_after != null && p.signal_score_before != null
@@ -1831,10 +1908,30 @@ function ReportDashboardV4({
       : null;
 
   const hasAmp = !!(p.ppc_enabled || p.influencer_enabled);
-  /** Cover + deck; Section 3 is two slides (factor scores, then score overview) per client template. */
-  const totalSlides = 11 + (hasAmp ? 1 : 0);
+  const showExecKpiReach = !!p.executive_summary_enabled && !!p.executive_total_reach_enabled;
+  const showExecKpiEngagements = !!p.executive_summary_enabled && !!p.executive_total_engagements_enabled;
+  const showExecKpiAssets = !!p.executive_summary_enabled && !!p.executive_assets_deployed_enabled;
+  const v4PhysicalIndices = useMemo(() => {
+    const hasExec = !!p.executive_summary_enabled;
+    const indices: number[] = [0];
+    if (hasExec) indices.push(1, 2);
+    indices.push(3, 4, 5, 6, 7);
+    if (hasAmp) indices.push(8);
+    if (hasAmp) indices.push(9, 10, 11);
+    else indices.push(8, 9, 10);
+    return indices;
+  }, [p.ppc_enabled, p.influencer_enabled, p.executive_summary_enabled]);
 
-  const prBullets = p.pr_score_bullets || [];
+  const totalSlides = v4PhysicalIndices.length;
+  const slidePos = (deckIndex: number) => v4PhysicalIndices.indexOf(deckIndex) + 1;
+  const showSlide = (deckIndex: number) => {
+    if (v4PhysicalIndices.indexOf(deckIndex) === -1) return false;
+    if (interactiveSlideIndex === undefined) return true;
+    return v4PhysicalIndices[interactiveSlideIndex] === deckIndex;
+  };
+
+  const prBullets = p.message_improvement_notes || p.pr_score_bullets || [];
+  const prRewritePairs = p.pr_rewrite_pairs || [];
   const nextSteps = p.next_steps_bullets || [];
 
   return (
@@ -1915,7 +2012,7 @@ function ReportDashboardV4({
       {showSlide(1) ? (
       <V4DeckSlide
         deckIndex={1}
-        slide={2}
+        slide={slidePos(1)}
         total={totalSlides}
         sectionLabel="Section 1 · Executive summary"
         title="Executive Summary"
@@ -1924,10 +2021,12 @@ function ReportDashboardV4({
           Lead with the outcome, what changed, and why the campaign mattered now — reach, signal movement, and content volume.
         </p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 flex-1 content-start">
-          <KpiCard label="Total Reach" value={fmt(p.total_reach)} hero />
-          <KpiCard label="Engagements" value={fmt(p.total_engagements)} color="#7B61FF" hero />
+          {showExecKpiReach && <KpiCard label="Total Reach" value={fmt(p.total_reach)} hero />}
+          {showExecKpiEngagements && (
+            <KpiCard label="Engagements" value={fmt(p.total_engagements)} color="#7B61FF" hero />
+          )}
           <KpiCard label="Signal Score" value={`${fmt(p.signal_score_before)} → ${fmt(p.signal_score_after)}`} color="#00FF9D" compact />
-          <KpiCard label="Assets Deployed" value={fmt(assetTotal)} compact />
+          {showExecKpiAssets && <KpiCard label="Assets Deployed" value={fmt(assetTotal)} compact />}
         </div>
       </V4DeckSlide>
       ) : null}
@@ -1935,7 +2034,7 @@ function ReportDashboardV4({
       {showSlide(2) ? (
       <V4DeckSlide
         deckIndex={2}
-        slide={3}
+        slide={slidePos(2)}
         total={totalSlides}
         sectionLabel="Section 2 · Campaign overview"
         title="Campaign Overview"
@@ -1956,7 +2055,7 @@ function ReportDashboardV4({
       {showSlide(3) ? (
       <V4DeckSlide
         deckIndex={3}
-        slide={4}
+        slide={slidePos(3)}
         total={totalSlides}
         sectionLabel="Section 3 · Signal score analysis"
         title="Factor scores"
@@ -1976,7 +2075,7 @@ function ReportDashboardV4({
       {showSlide(4) ? (
       <V4DeckSlide
         deckIndex={4}
-        slide={5}
+        slide={slidePos(4)}
         total={totalSlides}
         sectionLabel="Section 3 · Signal score analysis"
         title="Signal score overview"
@@ -2007,27 +2106,47 @@ function ReportDashboardV4({
       {showSlide(5) ? (
       <V4DeckSlide
         deckIndex={5}
-        slide={6}
+        slide={slidePos(5)}
         total={totalSlides}
         sectionLabel="Section 4 · PR rewrite & message upgrade"
         title="PR Rewrite & Message Upgrade"
       >
-        {prBullets.length > 0 ? (
-          <ul className="space-y-3 md:space-y-4 max-w-4xl">
-            {prBullets.map((bullet, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-4 rounded-2xl bg-white/[0.04] px-4 py-3.5 md:px-5 md:py-4"
-              >
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[#F59E0B]/12 border border-[#F59E0B]/25 text-[#FBBF24] text-xs font-black">
-                  {i + 1}
-                </span>
-                <span className="text-sm md:text-base text-[#C5D0E0] leading-relaxed">{bullet}</span>
-              </li>
-            ))}
-          </ul>
+        {(prRewritePairs.length > 0 || prBullets.length > 0) ? (
+          <div className="space-y-4 w-full max-w-5xl">
+            {prRewritePairs.length > 0 && (
+              <div className="space-y-3">
+                {prRewritePairs.map((pair, i) => (
+                  <div key={i} className="grid md:grid-cols-2 gap-3">
+                    <div className="rounded-2xl bg-white/[0.04] px-4 py-3.5 md:px-5 md:py-4 border border-white/[0.06]">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#94A3B8] mb-2">Original PR Language</p>
+                      <p className="text-sm text-[#C5D0E0] leading-relaxed whitespace-pre-wrap">{pair.original || "—"}</p>
+                    </div>
+                    <div className="rounded-2xl bg-white/[0.04] px-4 py-3.5 md:px-5 md:py-4 border border-[#00E5FF]/18">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#00E5FF] mb-2">EDM Signal Rewrite</p>
+                      <p className="text-sm text-[#E2E8F0] leading-relaxed whitespace-pre-wrap">{pair.rewrite || "—"}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {prBullets.length > 0 && (
+              <ul className="space-y-3 md:space-y-4">
+                {prBullets.map((bullet, i) => (
+                  <li
+                    key={i}
+                    className="flex items-start gap-4 rounded-2xl bg-white/[0.04] px-4 py-3.5 md:px-5 md:py-4"
+                  >
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[#F59E0B]/12 border border-[#F59E0B]/25 text-[#FBBF24] text-xs font-black">
+                      {i + 1}
+                    </span>
+                    <span className="text-sm md:text-base text-[#C5D0E0] leading-relaxed">{bullet}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         ) : (
-          <p className="text-sm text-[#64748B] italic">No message-upgrade bullets yet — add them under Signal Analysis in the report editor.</p>
+          <p className="text-sm text-[#64748B] italic">No PR rewrite entries yet — add them in the PR Rewrite section of the report editor.</p>
         )}
       </V4DeckSlide>
       ) : null}
@@ -2035,7 +2154,7 @@ function ReportDashboardV4({
       {showSlide(6) ? (
       <V4DeckSlide
         deckIndex={6}
-        slide={7}
+        slide={slidePos(6)}
         total={totalSlides}
         sectionLabel="Section 5 · Content pack summary"
         title="Content Pack Summary"
@@ -2052,7 +2171,7 @@ function ReportDashboardV4({
       {showSlide(7) ? (
       <V4DeckSlide
         deckIndex={7}
-        slide={8}
+        slide={slidePos(7)}
         total={totalSlides}
         sectionLabel="Section 6 · Distribution strategy"
         title="Distribution Strategy"
@@ -2069,7 +2188,7 @@ function ReportDashboardV4({
       {hasAmp && showSlide(8) ? (
         <V4DeckSlide
           deckIndex={8}
-          slide={9}
+          slide={slidePos(8)}
           total={totalSlides}
           sectionLabel="Section 7 · Amplification strategy"
           title="Amplification Strategy"
@@ -2103,15 +2222,29 @@ function ReportDashboardV4({
       {showSlide(hasAmp ? 9 : 8) ? (
       <V4DeckSlide
         deckIndex={hasAmp ? 9 : 8}
-        slide={hasAmp ? 10 : 9}
+        slide={slidePos(hasAmp ? 9 : 8)}
         total={totalSlides}
         sectionLabel={hasAmp ? "Section 8 · Narrative control" : "Section 8 · Narrative control"}
         title="Narrative Control"
       >
         <div className="grid md:grid-cols-3 gap-3 md:gap-4 flex-1 content-start">
           {[
-            { phase: "Phase 1", title: "Awareness", detail: p.campaign_type || "How the campaign introduced the story and why it mattered now." },
-            { phase: "Phase 2", title: "Validation", detail: p.algo_sentiment_bias || "Proof points that reinforced credibility and execution." },
+            {
+              phase: "Phase 1",
+              title: "Awareness",
+              detail:
+                !p.executive_summary_enabled
+                  ? "How the campaign introduced the story and why it mattered now."
+                  : p.campaign_type || "How the campaign introduced the story and why it mattered now.",
+            },
+            {
+              phase: "Phase 2",
+              title: "Validation",
+              detail:
+                !p.executive_summary_enabled
+                  ? "Proof points that reinforced credibility and execution."
+                  : p.algo_sentiment_bias || "Proof points that reinforced credibility and execution.",
+            },
             { phase: "Phase 3", title: "Momentum", detail: p.recommended_cta_text || "How attention extends into the next cadence or announcement." },
           ].map((row, i) => (
             <div
@@ -2131,7 +2264,7 @@ function ReportDashboardV4({
       {showSlide(hasAmp ? 10 : 9) ? (
       <V4DeckSlide
         deckIndex={hasAmp ? 10 : 9}
-        slide={hasAmp ? 11 : 10}
+        slide={slidePos(hasAmp ? 10 : 9)}
         total={totalSlides}
         sectionLabel={hasAmp ? "Section 9 · Campaign results" : "Section 9 · Campaign results"}
         title="Campaign Results Dashboard"
@@ -2149,7 +2282,7 @@ function ReportDashboardV4({
       {showSlide(hasAmp ? 11 : 10) ? (
       <V4DeckSlide
         deckIndex={hasAmp ? 11 : 10}
-        slide={hasAmp ? 12 : 11}
+        slide={slidePos(hasAmp ? 11 : 10)}
         total={totalSlides}
         sectionLabel={hasAmp ? "Section 10 · Strategic recommendations" : "Section 10 · Strategic recommendations"}
         title="Strategic Recommendations"
@@ -2229,10 +2362,11 @@ export function ReportViewer({
   const currentSlideRef = useRef(currentSlide);
   currentSlideRef.current = currentSlide;
 
-  const v4DeckCount = useMemo(
-    () => 11 + (p.ppc_enabled || p.influencer_enabled ? 1 : 0),
-    [p.ppc_enabled, p.influencer_enabled]
-  );
+  const v4DeckCount = useMemo(() => {
+    const hasAmp = !!(p.ppc_enabled || p.influencer_enabled);
+    const hasExec = !!p.executive_summary_enabled;
+    return 11 + (hasAmp ? 1 : 0) - (hasExec ? 0 : 2);
+  }, [p.ppc_enabled, p.influencer_enabled, p.executive_summary_enabled]);
 
   const switchView = useCallback((index: number) => {
     const target = Math.max(0, Math.min(index, 3));
@@ -2328,12 +2462,55 @@ export function ReportViewer({
 
   const assetTotal =
     (p.x_threads || 0) + (p.reddit_posts || 0) + (p.videos || 0) +
-    (p.articles || 0) + (p.emails || 0) + (p.push_notifications || 0);
+    (p.articles || 0) + (p.emails || 0) + (p.push_notifications || 0) +
+    (p.content_deployment_platforms || []).reduce((sum, row) => sum + (row.count || 0), 0);
 
   const scoreDelta =
     p.signal_score_after != null && p.signal_score_before != null
       ? p.signal_score_after - p.signal_score_before
       : null;
+  const hasSignalScoreData =
+    p.signal_score_enabled !== false &&
+    [
+      p.signal_score_before,
+      p.signal_score_after,
+      p.execution_before,
+      p.execution_after,
+      p.clarity_before,
+      p.clarity_after,
+      p.distribution_before,
+      p.distribution_after,
+      p.engagement_axis_before,
+      p.engagement_axis_after,
+    ].some((v) => (v || 0) > 0);
+  const hasContentDeploymentData = p.content_deployment_enabled !== false && assetTotal > 0;
+  const hasDistributionData =
+    p.distribution_enabled !== false &&
+    (
+      (p.x_reach || 0) + (p.reddit_reach || 0) + (p.discord_reach || 0) + (p.telegram_reach || 0) + (p.email_reach || 0) +
+      (p.distribution_channels || []).reduce((sum, row) => sum + (row.reach || 0), 0)
+    ) > 0;
+  const hasEngagementData =
+    p.engagement_enabled !== false &&
+    ((p.likes || 0) + (p.comments || 0) + (p.shares || 0) + (p.clicks || 0) > 0);
+  const hasMarketImpactData =
+    p.market_impact_enabled !== false && (p.market_impact_bullets?.length ?? 0) > 0;
+  const hasNextStepsData =
+    p.next_steps_enabled !== false &&
+    ((p.recommended_cta_text || "").trim().length > 0 || (p.next_steps_bullets?.length ?? 0) > 0);
+  const hasExecutiveSummary = !!p.executive_summary_enabled;
+  const showExecKpiReach = hasExecutiveSummary && !!p.executive_total_reach_enabled;
+  const showExecKpiEngagements = hasExecutiveSummary && !!p.executive_total_engagements_enabled;
+  const showExecKpiAssets = hasExecutiveSummary && !!p.executive_assets_deployed_enabled;
+
+  /** Report 1 page 2: only mount when at least one §7–§10-related block has editor data (avoid empty “7–10” chrome). */
+  const hasReport1ExtendedContent =
+    (p.top_content?.length ?? 0) > 0 ||
+    !!(p.ppc_enabled || p.influencer_enabled) ||
+    hasMarketImpactData ||
+    hasNextStepsData ||
+    !!(p.x_post_url || p.instagram_url || p.tiktok_url || p.stocktwits_post || p.linkedin_post || p.reddit_post) ||
+    (p.next_pr_bullets?.length ?? 0) > 0;
 
   return (
     <div className="relative min-h-screen bg-[#060A0F] text-white font-[family-name:var(--font-inter)] selection:bg-[#00E5FF]/20">
@@ -2531,7 +2708,7 @@ export function ReportViewer({
                       </p>
                     )}
                     <p className="text-xs text-[#3A4452]">Prepared by {p.prepared_by || "EDM Media"}</p>
-                    {(p.algo_sentiment_bias || p.campaign_type) && (
+                    {hasExecutiveSummary && (p.algo_sentiment_bias || p.campaign_type) && (
                       <div className="flex flex-wrap gap-1.5 mt-1 justify-end">
                         {p.algo_sentiment_bias && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#00FF9D]/10 border border-[#00FF9D]/25 text-[#00FF9D]">
@@ -2549,6 +2726,8 @@ export function ReportViewer({
                 </div>
               </header>
 
+              {hasExecutiveSummary && (
+                <>
               {/* ── Section label ── */}
               <div className="flex items-center gap-3">
                 <div
@@ -2563,17 +2742,27 @@ export function ReportViewer({
 
               {/* ── Hero KPI strip (template §1 — core outcome metrics) ── */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-                <KpiCard label="Total reach" value={fmt(p.total_reach)} hero />
-                <KpiCard label="Engagements" value={fmt(p.total_engagements)} color="#7B61FF" hero />
-                <KpiCard
-                  label="Signal score"
-                  value={`${fmt(p.signal_score_before)} → ${fmt(p.signal_score_after)}`}
-                  color="#00FF9D"
-                  compact
-                />
-                <KpiCard label="Assets deployed" value={fmt(p.assets_deployed)} compact />
+                {showExecKpiReach && <KpiCard label="Total reach" value={fmt(p.total_reach)} hero />}
+                {showExecKpiEngagements && (
+                  <KpiCard label="Engagements" value={fmt(p.total_engagements)} color="#7B61FF" hero />
+                )}
+                {hasSignalScoreData && (
+                  <KpiCard
+                    label="Signal score"
+                    value={`${fmt(p.signal_score_before)} → ${fmt(p.signal_score_after)}`}
+                    color="#00FF9D"
+                    compact
+                  />
+                )}
+                {showExecKpiAssets && (
+                  <KpiCard label="Assets deployed" value={fmt(p.assets_deployed ?? assetTotal)} compact />
+                )}
               </div>
+                </>
+              )}
 
+              {hasExecutiveSummary && (
+                <>
               {/* ── 2. Campaign overview (template §2) ── */}
               <div className="flex items-center gap-3 pt-2">
                 <div
@@ -2593,163 +2782,200 @@ export function ReportViewer({
                   <p className="text-sm md:text-base text-[#C5D0E0] leading-relaxed">{p.algo_sentiment_bias || "—"}</p>
                 </SectionCard>
               </div>
+                </>
+              )}
 
-              <div className="flex items-center gap-3 pt-2">
-                <div
-                  className="h-6 w-[3px] rounded-full"
-                  style={{ background: "linear-gradient(180deg, #00E5FF, #00FF9D)" }}
-                  aria-hidden
-                />
-                <h2 className="text-lg md:text-xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
-                  3. Signal score analysis
-                </h2>
-              </div>
-
-              {/* ── Gauges + channel mix (template §3) ── */}
-              <div className="grid lg:grid-cols-2 gap-5">
-                <SectionCard title="Signal score" accent="cyan">
-                  <div className="flex items-center justify-around gap-2 py-2">
-                    <ScoreCircle value={p.signal_score_before} label="Before EDM Signal" color="#FF6B6B" />
-                    <div className="flex flex-col items-center gap-1.5 select-none">
-                      <div
-                        className="h-px w-10 md:w-16"
-                        style={{ background: "linear-gradient(90deg, #FF6B6B, #00FF9D)" }}
-                      />
-                      {scoreDelta !== null && (
-                        <span
-                          className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded-full ${
-                            scoreDelta >= 0
-                              ? "bg-[#00FF9D]/15 text-[#00FF9D]"
-                              : "bg-[#FF6B6B]/15 text-[#FF6B6B]"
-                          }`}
-                        >
-                          {scoreDelta >= 0 ? "+" : ""}
-                          {scoreDelta} pts
-                        </span>
-                      )}
-                    </div>
-                    <ScoreCircle value={p.signal_score_after} label="After EDM Signal" color="#00FF9D" />
+              {(hasSignalScoreData || hasDistributionData) && (
+                <>
+                  <div className="flex items-center gap-3 pt-2">
+                    <div
+                      className="h-6 w-[3px] rounded-full"
+                      style={{ background: "linear-gradient(180deg, #00E5FF, #00FF9D)" }}
+                      aria-hidden
+                    />
+                    <h2 className="text-lg md:text-xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
+                      3. Signal score analysis
+                    </h2>
                   </div>
-                </SectionCard>
 
-                <SectionCard title="Channel mix" accent="purple">
-                  <ChannelMixDonut payload={p} />
-                </SectionCard>
-              </div>
+                  {/* ── Gauges + channel mix (template §3) ── */}
+                  <div className="grid lg:grid-cols-2 gap-5">
+                    {hasSignalScoreData && (
+                      <SectionCard title="Signal score" accent="cyan">
+                        <div className="flex items-center justify-around gap-2 py-2">
+                          <ScoreCircle value={p.signal_score_before} label="Before EDM Signal" color="#FF6B6B" />
+                          <div className="flex flex-col items-center gap-1.5 select-none">
+                            <div
+                              className="h-px w-10 md:w-16"
+                              style={{ background: "linear-gradient(90deg, #FF6B6B, #00FF9D)" }}
+                            />
+                            {scoreDelta !== null && (
+                              <span
+                                className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded-full ${
+                                  scoreDelta >= 0
+                                    ? "bg-[#00FF9D]/15 text-[#00FF9D]"
+                                    : "bg-[#FF6B6B]/15 text-[#FF6B6B]"
+                                }`}
+                              >
+                                {scoreDelta >= 0 ? "+" : ""}
+                                {scoreDelta} pts
+                              </span>
+                            )}
+                          </div>
+                          <ScoreCircle value={p.signal_score_after} label="After EDM Signal" color="#00FF9D" />
+                        </div>
+                      </SectionCard>
+                    )}
+                    {hasDistributionData && (
+                      <SectionCard title="Channel mix" accent="purple">
+                        <ChannelMixDonut payload={p} />
+                      </SectionCard>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* ── 4. PR rewrite & message upgrade (template §4 — after signal, before asset grid) ── */}
-              <div className="flex items-center gap-3 pt-2">
-                <div
-                  className="h-6 w-[3px] rounded-full"
-                  style={{ background: "linear-gradient(180deg, #F59E0B, #00E5FF)" }}
-                  aria-hidden
-                />
-                <h2 className="text-lg md:text-xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
-                  4. PR rewrite &amp; message upgrade
-                </h2>
-              </div>
-              {(p.pr_score_bullets?.length ?? 0) > 0 ? (
-                <SectionCard title="Message improvement" accent="cyan">
-                  <ul className="space-y-3">
-                    {p.pr_score_bullets!.map((bullet, i) => (
-                      <li key={i} className="flex items-start gap-3">
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#F59E0B]/15 border border-[#F59E0B]/25 text-[#F59E0B] text-xs font-bold">
-                          ✓
-                        </span>
-                        <span className="text-sm text-[#C5D0E0] leading-relaxed">{bullet}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </SectionCard>
-              ) : (
-                <SectionCard title="Message improvement" accent="cyan">
-                  <p className="text-sm text-[#64748B] italic">
-                    Add message-upgrade bullets under Signal Analysis in the report editor.
-                  </p>
-                </SectionCard>
+              {((p.pr_rewrite_pairs?.length ?? 0) > 0 || (p.message_improvement_notes?.length ?? 0) > 0 || (p.pr_score_bullets?.length ?? 0) > 0) && (
+                <>
+                  <div className="flex items-center gap-3 pt-2">
+                    <div
+                      className="h-6 w-[3px] rounded-full"
+                      style={{ background: "linear-gradient(180deg, #F59E0B, #00E5FF)" }}
+                      aria-hidden
+                    />
+                    <h2 className="text-lg md:text-xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
+                      4. PR rewrite &amp; message upgrade
+                    </h2>
+                  </div>
+                  <SectionCard title="Message improvement" accent="cyan">
+                    {(p.pr_rewrite_pairs?.length ?? 0) > 0 && (
+                      <div className="space-y-3 mb-4">
+                        {p.pr_rewrite_pairs!.map((pair, i) => (
+                          <div key={i} className="grid md:grid-cols-2 gap-3">
+                            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                              <p className="text-[10px] font-bold text-[#8B9AAF] uppercase tracking-widest mb-1.5">Original</p>
+                              <p className="text-xs text-[#C5D0E0] leading-relaxed whitespace-pre-wrap">{pair.original || "—"}</p>
+                            </div>
+                            <div className="rounded-xl border border-[#00E5FF]/20 bg-[#00E5FF]/[0.04] p-3">
+                              <p className="text-[10px] font-bold text-[#00E5FF] uppercase tracking-widest mb-1.5">Rewrite</p>
+                              <p className="text-xs text-[#E2E8F0] leading-relaxed whitespace-pre-wrap">{pair.rewrite || "—"}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <ul className="space-y-3">
+                      {(p.message_improvement_notes || p.pr_score_bullets || []).map((bullet, i) => (
+                        <li key={i} className="flex items-start gap-3">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#F59E0B]/15 border border-[#F59E0B]/25 text-[#F59E0B] text-xs font-bold">
+                            ✓
+                          </span>
+                          <span className="text-sm text-[#C5D0E0] leading-relaxed">{bullet}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </SectionCard>
+                </>
               )}
 
               {/* ── 5. Content pack summary + signal factor breakdown (template §5 & §3 factors) ── */}
-              <div className="flex items-center gap-3 pt-2">
-                <div
-                  className="h-6 w-[3px] rounded-full"
-                  style={{ background: "linear-gradient(180deg, #00FF9D, #7B61FF)" }}
-                  aria-hidden
-                />
-                <h2 className="text-lg md:text-xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
-                  5. Content pack summary
-                </h2>
-              </div>
-              <div className="grid lg:grid-cols-2 gap-5">
-                <SectionCard title="Signal factor breakdown" accent="green">
-                  <ProgressBar label="Execution" before={p.execution_before || 0} after={p.execution_after || 0} />
-                  <ProgressBar label="Clarity" before={p.clarity_before || 0} after={p.clarity_after || 0} />
-                  <ProgressBar label="Distribution" before={p.distribution_before || 0} after={p.distribution_after || 0} />
-                  <ProgressBar label="Engagement" before={p.engagement_axis_before || 0} after={p.engagement_axis_after || 0} />
-                </SectionCard>
-
-                <SectionCard title="Content Pack Summary" subtitle="Assets across owned and social surfaces." accent="cyan">
-                  <AssetBars payload={p} total={assetTotal} />
-                </SectionCard>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <div
-                  className="h-6 w-[3px] rounded-full"
-                  style={{ background: "linear-gradient(180deg, #7B61FF, #00E5FF)" }}
-                  aria-hidden
-                />
-                <h2 className="text-lg md:text-xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
-                  6. Distribution strategy
-                </h2>
-              </div>
-              {/* ── Reach & engagement (template §6) ── */}
-              <SectionCard title="Distribution reach &amp; engagement" accent="purple">
-                <div className="grid md:grid-cols-[3fr_2fr] gap-8">
-                  <div>
-                    <p className="text-[11px] text-[#5C6573] uppercase tracking-widest mb-4 font-semibold">
-                      Reach by platform
-                    </p>
-                    <ReachBars payload={p} />
+              {(hasSignalScoreData || hasContentDeploymentData) && (
+                <>
+                  <div className="flex items-center gap-3 pt-2">
+                    <div
+                      className="h-6 w-[3px] rounded-full"
+                      style={{ background: "linear-gradient(180deg, #00FF9D, #7B61FF)" }}
+                      aria-hidden
+                    />
+                    <h2 className="text-lg md:text-xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
+                      5. Content pack summary
+                    </h2>
                   </div>
-                  <div>
-                    <p className="text-[11px] text-[#5C6573] uppercase tracking-widest mb-4 font-semibold">
-                      Engagement breakdown
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { label: "Likes", value: p.likes, color: "#00E5FF" },
-                        { label: "Comments", value: p.comments, color: "#7B61FF" },
-                        { label: "Shares", value: p.shares, color: "#00FF9D" },
-                        { label: "Clicks", value: p.clicks, color: "#F59E0B" },
-                      ].map(({ label, value, color }) => (
-                        <div
-                          key={label}
-                          className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3.5 text-center"
-                        >
-                          <div
-                            className="absolute inset-0 opacity-[0.04] pointer-events-none"
-                            style={{ background: `radial-gradient(circle at 50% 0%, ${color}, transparent 70%)` }}
-                            aria-hidden
-                          />
-                          <p className="text-2xl font-bold tabular-nums leading-none mb-1" style={{ color }}>
-                            {fmt(value)}
+                  <div className="grid lg:grid-cols-2 gap-5">
+                    {hasSignalScoreData && (
+                      <SectionCard title="Signal factor breakdown" accent="green">
+                        <ProgressBar label="Execution" before={p.execution_before || 0} after={p.execution_after || 0} />
+                        <ProgressBar label="Clarity" before={p.clarity_before || 0} after={p.clarity_after || 0} />
+                        <ProgressBar label="Distribution" before={p.distribution_before || 0} after={p.distribution_after || 0} />
+                        <ProgressBar label="Engagement" before={p.engagement_axis_before || 0} after={p.engagement_axis_after || 0} />
+                      </SectionCard>
+                    )}
+                    {hasContentDeploymentData && (
+                      <SectionCard title="Content Pack Summary" subtitle="Assets across owned and social surfaces." accent="cyan">
+                        <AssetBars payload={p} total={assetTotal} />
+                      </SectionCard>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {(hasDistributionData || hasEngagementData) && (
+                <>
+                  <div className="flex items-center gap-3 pt-2">
+                    <div
+                      className="h-6 w-[3px] rounded-full"
+                      style={{ background: "linear-gradient(180deg, #7B61FF, #00E5FF)" }}
+                      aria-hidden
+                    />
+                    <h2 className="text-lg md:text-xl font-bold font-[family-name:var(--font-montserrat)] text-white tracking-tight">
+                      6. Distribution strategy
+                    </h2>
+                  </div>
+                  {/* ── Reach & engagement (template §6) ── */}
+                  <SectionCard title="Distribution reach &amp; engagement" accent="purple">
+                    <div className={`grid gap-8 ${hasDistributionData && hasEngagementData ? "md:grid-cols-[3fr_2fr]" : "grid-cols-1"}`}>
+                      {hasDistributionData && (
+                        <div>
+                          <p className="text-[11px] text-[#5C6573] uppercase tracking-widest mb-4 font-semibold">
+                            Reach by platform
                           </p>
-                          <p className="text-[11px] text-[#8B9AAF] uppercase tracking-wider font-medium">
-                            {label}
-                          </p>
+                          <ReachBars payload={p} />
                         </div>
-                      ))}
+                      )}
+                      {hasEngagementData && (
+                        <div>
+                          <p className="text-[11px] text-[#5C6573] uppercase tracking-widest mb-4 font-semibold">
+                            Engagement breakdown
+                          </p>
+                          <div className="grid grid-cols-2 gap-3">
+                            {[
+                              { label: "Likes", value: p.likes, color: "#00E5FF" },
+                              { label: "Comments", value: p.comments, color: "#7B61FF" },
+                              { label: "Shares", value: p.shares, color: "#00FF9D" },
+                              { label: "Clicks", value: p.clicks, color: "#F59E0B" },
+                            ].map(({ label, value, color }) => (
+                              <div
+                                key={label}
+                                className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3.5 text-center"
+                              >
+                                <div
+                                  className="absolute inset-0 opacity-[0.04] pointer-events-none"
+                                  style={{ background: `radial-gradient(circle at 50% 0%, ${color}, transparent 70%)` }}
+                                  aria-hidden
+                                />
+                                <p className="text-2xl font-bold tabular-nums leading-none mb-1" style={{ color }}>
+                                  {fmt(value)}
+                                </p>
+                                <p className="text-[11px] text-[#8B9AAF] uppercase tracking-wider font-medium">
+                                  {label}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </div>
-              </SectionCard>
+                  </SectionCard>
+                </>
+              )}
 
             </div>
           </Slide>
         </div>
 
         {/* ════════════════════ PAGE 2 ════════════════════ */}
+        {hasReport1ExtendedContent ? (
         <div id="extended">
           <Slide className="justify-start py-10 md:py-12">
             <div className="max-w-6xl mx-auto w-full space-y-7">
@@ -2840,7 +3066,9 @@ export function ReportViewer({
                 </div>
               )}
 
-              <div className="grid lg:grid-cols-2 gap-5">
+              {(hasMarketImpactData || hasNextStepsData) && (
+                <div className="grid lg:grid-cols-2 gap-5">
+                {hasMarketImpactData && (
                 <SectionCard title="Market impact" accent="green">
                   <ul className="space-y-4">
                     {(p.market_impact_bullets || []).map((bullet, i) => (
@@ -2853,7 +3081,9 @@ export function ReportViewer({
                     ))}
                   </ul>
                 </SectionCard>
+                )}
 
+                {hasNextStepsData && (
                 <SectionCard title="Sustain momentum" accent="cyan">
                   <ul className="space-y-4 mb-5">
                     {(p.next_steps_bullets || []).map((bullet, i) => (
@@ -2875,7 +3105,9 @@ export function ReportViewer({
                     </div>
                   )}
                 </SectionCard>
+                )}
               </div>
+              )}
 
               {/* Social Posts */}
               {(p.x_post_url || p.instagram_url || p.tiktok_url || p.stocktwits_post || p.linkedin_post || p.reddit_post) && (
@@ -2952,6 +3184,7 @@ export function ReportViewer({
             </div>
           </Slide>
         </div>
+        ) : null}
         </>
         ) : currentSlide === 1 ? (
           <ReportDashboardV2

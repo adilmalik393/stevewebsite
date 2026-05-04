@@ -22,7 +22,7 @@ export function ClientWorkspace({
 
   return (
     <div>
-      <div className="flex gap-1 mb-8 p-1 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] w-fit max-w-full overflow-x-auto">
+      {/* <div className="flex gap-1 mb-8 p-1 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] w-fit max-w-full overflow-x-auto">
         <Link
           href={base}
           scroll={false}
@@ -45,7 +45,7 @@ export function ClientWorkspace({
         >
           Signal Deck
         </Link>
-      </div>
+      </div> */}
 
       {tab === "reports" ? (
         <ClientReportsSection clientId={clientId} reports={reports} />
