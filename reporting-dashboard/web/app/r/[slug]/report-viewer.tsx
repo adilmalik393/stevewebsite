@@ -747,7 +747,6 @@ function ReportDashboardV2({
   const showExecKpiReach = hasExecutiveSummary && !!p.executive_total_reach_enabled;
   const showExecKpiEngagements = hasExecutiveSummary && !!p.executive_total_engagements_enabled;
   const showExecKpiAssets = hasExecutiveSummary && !!p.executive_assets_deployed_enabled;
-
   const channels = useMemo(() => [
     { label: "X / Threads", value: p.x_reach || 0 },
     { label: "Reddit",       value: p.reddit_reach || 0 },
@@ -1968,11 +1967,11 @@ function ReportDashboardV4({
               aria-hidden
             />
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold font-[family-name:var(--font-montserrat)] tracking-tight leading-[1.08]">
-              <span className="bg-gradient-to-r from-white via-[#E2E8F0] to-[#94A3B8] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-white via-[#E2E8F0] to-[#94A3B8] bg-clip-text text-transparent print:bg-none print:text-white">
                 Client campaign
               </span>
               <br />
-              <span className="bg-gradient-to-r from-[#00E5FF] via-[#7B61FF] to-[#00FF9D] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#00E5FF] via-[#7B61FF] to-[#00FF9D] bg-clip-text text-transparent print:bg-none print:text-[#00E5FF]">
                 report
               </span>
             </h1>
@@ -2502,6 +2501,18 @@ export function ReportViewer({
   const showExecKpiReach = hasExecutiveSummary && !!p.executive_total_reach_enabled;
   const showExecKpiEngagements = hasExecutiveSummary && !!p.executive_total_engagements_enabled;
   const showExecKpiAssets = hasExecutiveSummary && !!p.executive_assets_deployed_enabled;
+  const hasCampaignThesis = (p.campaign_type || "").trim().length > 0;
+  const hasPrimarySignalShift = (p.algo_sentiment_bias || "").trim().length > 0;
+  const showCampaignOverview = hasExecutiveSummary && (hasCampaignThesis || hasPrimarySignalShift);
+  const execKpiCount = [showExecKpiReach, showExecKpiEngagements, hasSignalScoreData, showExecKpiAssets].filter(Boolean).length;
+  const execKpiGridClass =
+    execKpiCount >= 4
+      ? "grid-cols-2 md:grid-cols-4"
+      : execKpiCount === 3
+      ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
+      : execKpiCount === 2
+      ? "grid-cols-1 sm:grid-cols-2"
+      : "grid-cols-1";
 
   /** Report 1 page 2: only mount when at least one §7–§10-related block has editor data (avoid empty “7–10” chrome). */
   const hasReport1ExtendedContent =
@@ -2687,13 +2698,13 @@ export function ReportViewer({
                     <p className="text-xs font-bold text-[#7B61FF] uppercase tracking-[0.3em] font-[family-name:var(--font-montserrat)]">
                       EDM Signal
                     </p>
-                    <h1 className="text-3xl md:text-4xl font-bold font-[family-name:var(--font-montserrat)] bg-gradient-to-r from-[#00E5FF] via-[#7B61FF] to-[#00FF9D] bg-clip-text text-transparent leading-tight">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold font-[family-name:var(--font-montserrat)] bg-gradient-to-r from-[#00E5FF] via-[#7B61FF] to-[#00FF9D] bg-clip-text text-transparent leading-tight print:bg-none print:text-[#00E5FF]">
                       Client Campaign Report
                     </h1>
                   </div>
                   {/* right: meta */}
-                  <div className="shrink-0 md:text-right space-y-1 border-t border-white/[0.06] pt-3 md:border-0 md:pt-0">
-                    <p className="text-lg font-bold text-white leading-tight">
+                  <div className="w-full md:w-auto shrink-0 md:text-right space-y-1 border-t border-white/[0.06] pt-3 md:border-0 md:pt-0">
+                    <p className="text-base sm:text-lg font-bold text-white leading-tight break-words">
                       {companyName}
                       {ticker ? (
                         <span className="ml-2 rounded-md bg-[#7B61FF]/20 border border-[#7B61FF]/30 text-[#7B61FF] text-sm font-semibold px-2 py-0.5 align-middle">
@@ -2709,7 +2720,7 @@ export function ReportViewer({
                     )}
                     <p className="text-xs text-[#3A4452]">Prepared by {p.prepared_by || "EDM Media"}</p>
                     {hasExecutiveSummary && (p.algo_sentiment_bias || p.campaign_type) && (
-                      <div className="flex flex-wrap gap-1.5 mt-1 justify-end">
+                      <div className="flex flex-wrap gap-1.5 mt-1 justify-start md:justify-end">
                         {p.algo_sentiment_bias && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#00FF9D]/10 border border-[#00FF9D]/25 text-[#00FF9D]">
                             {p.algo_sentiment_bias}
@@ -2741,7 +2752,7 @@ export function ReportViewer({
               </div>
 
               {/* ── Hero KPI strip (template §1 — core outcome metrics) ── */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              <div className={`grid gap-3 md:gap-4 ${execKpiGridClass}`}>
                 {showExecKpiReach && <KpiCard label="Total reach" value={fmt(p.total_reach)} hero />}
                 {showExecKpiEngagements && (
                   <KpiCard label="Engagements" value={fmt(p.total_engagements)} color="#7B61FF" hero />
@@ -2761,7 +2772,7 @@ export function ReportViewer({
                 </>
               )}
 
-              {hasExecutiveSummary && (
+              {showCampaignOverview && (
                 <>
               {/* ── 2. Campaign overview (template §2) ── */}
               <div className="flex items-center gap-3 pt-2">
@@ -2774,13 +2785,17 @@ export function ReportViewer({
                   2. Campaign overview
                 </h2>
               </div>
-              <div className="grid md:grid-cols-2 gap-4 md:gap-5">
-                <SectionCard title="Campaign thesis" accent="purple">
-                  <p className="text-sm md:text-base text-[#C5D0E0] leading-relaxed">{p.campaign_type || "—"}</p>
-                </SectionCard>
-                <SectionCard title="Primary signal shift" accent="green">
-                  <p className="text-sm md:text-base text-[#C5D0E0] leading-relaxed">{p.algo_sentiment_bias || "—"}</p>
-                </SectionCard>
+              <div className={`grid gap-4 md:gap-5 ${hasCampaignThesis && hasPrimarySignalShift ? "md:grid-cols-2" : "grid-cols-1"}`}>
+                {hasCampaignThesis && (
+                  <SectionCard title="Campaign thesis" accent="purple">
+                    <p className="text-sm md:text-base text-[#C5D0E0] leading-relaxed">{p.campaign_type}</p>
+                  </SectionCard>
+                )}
+                {hasPrimarySignalShift && (
+                  <SectionCard title="Primary signal shift" accent="green">
+                    <p className="text-sm md:text-base text-[#C5D0E0] leading-relaxed">{p.algo_sentiment_bias}</p>
+                  </SectionCard>
+                )}
               </div>
                 </>
               )}
@@ -2799,14 +2814,19 @@ export function ReportViewer({
                   </div>
 
                   {/* ── Gauges + channel mix (template §3) ── */}
-                  <div className="grid lg:grid-cols-2 gap-5">
+                  <div className={`grid gap-5 ${hasSignalScoreData && hasDistributionData ? "lg:grid-cols-2" : "grid-cols-1"}`}>
                     {hasSignalScoreData && (
                       <SectionCard title="Signal score" accent="cyan">
-                        <div className="flex items-center justify-around gap-2 py-2">
-                          <ScoreCircle value={p.signal_score_before} label="Before EDM Signal" color="#FF6B6B" />
-                          <div className="flex flex-col items-center gap-1.5 select-none">
+                        <div className="grid w-full grid-cols-2 items-center justify-items-center gap-x-2 gap-y-3 py-1 sm:grid-cols-[1fr_auto_1fr] sm:gap-x-3 sm:gap-y-0 sm:py-2">
+                          <div className="sm:col-start-1 sm:row-start-1">
+                            <ScoreCircle value={p.signal_score_before} label="Before EDM Signal" color="#FF6B6B" />
+                          </div>
+                          <div className="sm:col-start-3 sm:row-start-1">
+                            <ScoreCircle value={p.signal_score_after} label="After EDM Signal" color="#00FF9D" />
+                          </div>
+                          <div className="col-span-2 flex flex-col items-center gap-1.5 select-none sm:col-span-1 sm:col-start-2 sm:row-start-1">
                             <div
-                              className="h-px w-10 md:w-16"
+                              className="h-px w-20 md:w-16"
                               style={{ background: "linear-gradient(90deg, #FF6B6B, #00FF9D)" }}
                             />
                             {scoreDelta !== null && (
@@ -2822,7 +2842,6 @@ export function ReportViewer({
                               </span>
                             )}
                           </div>
-                          <ScoreCircle value={p.signal_score_after} label="After EDM Signal" color="#00FF9D" />
                         </div>
                       </SectionCard>
                     )}
@@ -2892,7 +2911,7 @@ export function ReportViewer({
                       5. Content pack summary
                     </h2>
                   </div>
-                  <div className="grid lg:grid-cols-2 gap-5">
+                  <div className={`grid gap-5 ${hasSignalScoreData && hasContentDeploymentData ? "lg:grid-cols-2" : "grid-cols-1"}`}>
                     {hasSignalScoreData && (
                       <SectionCard title="Signal factor breakdown" accent="green">
                         <ProgressBar label="Execution" before={p.execution_before || 0} after={p.execution_after || 0} />
@@ -2990,10 +3009,6 @@ export function ReportViewer({
                   7–10 · Amplification, narrative &amp; recommendations
                 </h2>
               </div>
-              <p className="text-xs text-[#64748B] mb-2 max-w-2xl">
-                Continues the client template: amplification (§7), narrative (§8), results (§9), and strategic recommendations (§10).
-              </p>
-
               {(p.top_content?.length ?? 0) > 0 && (
                 <SectionCard title="Campaign Social Messaging" accent="cyan">
                   <div className="grid gap-4">
@@ -3036,7 +3051,7 @@ export function ReportViewer({
               )}
 
               {(p.ppc_enabled || p.influencer_enabled) && (
-                <div className={p.ppc_enabled && p.influencer_enabled ? "grid lg:grid-cols-2 gap-5" : ""}>
+                <div className={`grid gap-5 ${p.ppc_enabled && p.influencer_enabled ? "lg:grid-cols-2" : "grid-cols-1"}`}>
                   {p.ppc_enabled && (
                     <SectionCard title="PPC performance" accent="cyan">
                       <div className="grid grid-cols-2 gap-3">
@@ -3067,7 +3082,7 @@ export function ReportViewer({
               )}
 
               {(hasMarketImpactData || hasNextStepsData) && (
-                <div className="grid lg:grid-cols-2 gap-5">
+                <div className={`grid gap-5 ${hasMarketImpactData && hasNextStepsData ? "lg:grid-cols-2" : "grid-cols-1"}`}>
                 {hasMarketImpactData && (
                 <SectionCard title="Market impact" accent="green">
                   <ul className="space-y-4">
