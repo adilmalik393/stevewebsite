@@ -2711,6 +2711,7 @@ export function ReportViewer({
             >
               Next →
             </button>
+            {/* PDF download button — temporarily disabled
             {publicSlug && (
               <a
                 href={`/api/reports/${encodeURIComponent(publicSlug)}/pdf?view=${currentSlide}`}
@@ -2719,6 +2720,7 @@ export function ReportViewer({
                 PDF
               </a>
             )}
+            */}
             <button
               type="button"
               onClick={() => window.print()}
