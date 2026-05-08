@@ -316,6 +316,13 @@ export interface ReportPayload {
   influencers_activated?: number;
   influencer_reach?: number;
   influencer_engagement?: number;
+  // Campaign Results Dashboard
+  results_dashboard_rows?: {
+    metric: string;
+    target: string;
+    actual: string;
+    commentary: string;
+  }[];
   // Market Impact
   market_impact_enabled?: boolean;
   market_impact_bullets?: string[];

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { flushSync } from "react-dom";
 import type { ReportPayload } from "@/lib/db";
 
 function fmt(n: number | undefined): string {
@@ -418,15 +417,20 @@ function Slide({
   children,
   className = "",
   id,
+  hidden = false,
 }: {
   children: React.ReactNode;
   className?: string;
   id?: string;
+  /** Visually hides this slide in interactive mode via inline display:none.
+   *  The .v4-slide-hidden CSS class overrides it back to flex in @media print. */
+  hidden?: boolean;
 }) {
   return (
     <div
       id={id}
-      className={`pdf-slide min-h-screen flex flex-col justify-center px-5 md:px-12 py-10 md:py-14 ${className}`}
+      className={`pdf-slide min-h-screen flex flex-col justify-center px-5 md:px-12 py-10 md:py-14${hidden ? " v4-slide-hidden" : ""} ${className}`}
+      style={hidden ? { display: "none" } : undefined}
     >
       {children}
     </div>
@@ -1834,6 +1838,7 @@ function V4DeckSlide({
   sectionLabel,
   title,
   children,
+  hidden = false,
 }: {
   /** Zero-based index for scroll targets (`report-v4-slide-{n}`). */
   deckIndex: number;
@@ -1842,11 +1847,13 @@ function V4DeckSlide({
   sectionLabel: string;
   title: string;
   children: React.ReactNode;
+  hidden?: boolean;
 }) {
   return (
     <Slide
       id={`report-v4-slide-${deckIndex}`}
       className="justify-center py-8 md:py-12 scroll-mt-24"
+      hidden={hidden}
     >
       <div className="relative max-w-6xl mx-auto w-full px-5 md:px-12 flex flex-col min-h-[min(100dvh,860px)] md:min-h-[720px]">
         <header className="flex flex-row items-start justify-between gap-6 shrink-0 pb-6 md:pb-8 border-b border-white/[0.06]">
@@ -1906,27 +1913,53 @@ function ReportDashboardV4({
       ? p.signal_score_after - p.signal_score_before
       : null;
 
-  const hasAmp = !!(p.ppc_enabled || p.influencer_enabled);
   const showExecKpiReach = !!p.executive_summary_enabled && !!p.executive_total_reach_enabled;
   const showExecKpiEngagements = !!p.executive_summary_enabled && !!p.executive_total_engagements_enabled;
   const showExecKpiAssets = !!p.executive_summary_enabled && !!p.executive_assets_deployed_enabled;
   const v4PhysicalIndices = useMemo(() => {
-    const hasExec = !!p.executive_summary_enabled;
+    const hasExec        = !!p.executive_summary_enabled;
+    const hasSignal      = p.signal_score_enabled !== false;
+    const hasPrRewrite   = (p.pr_rewrite_pairs?.length ?? 0) > 0 || (p.message_improvement_notes?.length ?? 0) > 0;
+    const hasContent     = p.content_deployment_enabled !== false;
+    const hasDist        = p.distribution_enabled !== false;
+    const hasResults     = p.engagement_enabled !== false || (p.results_dashboard_rows?.length ?? 0) > 0;
+    const hasTopContent  = (p.top_content?.length ?? 0) > 0;
+    const hasMarketImpact = (p.market_impact_bullets?.length ?? 0) > 0;
+    const hasRecs        = p.next_steps_enabled !== false;
+    // Index map (docx order):
+    // 0=Cover, 1=Exec, 2=Signal Score circles, 3=Signal Breakdown bars,
+    // 4=PR Rewrite, 5=Content Deploy, 6=Distribution, 7=Engagement,
+    // 8=Top Content, 9=PPC, 10=Influencer, 11=Market Impact, 12=Strategic Recs
     const indices: number[] = [0];
-    if (hasExec) indices.push(1, 2);
-    indices.push(3, 4, 5, 6, 7);
-    if (hasAmp) indices.push(8);
-    if (hasAmp) indices.push(9, 10, 11);
-    else indices.push(8, 9, 10);
+    if (hasExec)          indices.push(1);
+    if (hasSignal)        indices.push(2, 3);
+    if (hasPrRewrite)     indices.push(4);
+    if (hasContent)       indices.push(5);
+    if (hasDist)          indices.push(6);
+    if (hasResults)       indices.push(7);
+    if (hasTopContent)    indices.push(8);
+    if (p.ppc_enabled)    indices.push(9);
+    if (p.influencer_enabled) indices.push(10);
+    if (hasMarketImpact)  indices.push(11);
+    if (hasRecs)          indices.push(12);
     return indices;
-  }, [p.ppc_enabled, p.influencer_enabled, p.executive_summary_enabled]);
+  }, [
+    p.executive_summary_enabled, p.signal_score_enabled,
+    p.pr_rewrite_pairs, p.message_improvement_notes,
+    p.content_deployment_enabled, p.distribution_enabled,
+    p.engagement_enabled, p.results_dashboard_rows,
+    p.top_content, p.ppc_enabled, p.influencer_enabled,
+    p.market_impact_bullets, p.next_steps_enabled,
+  ]);
 
   const totalSlides = v4PhysicalIndices.length;
   const slidePos = (deckIndex: number) => v4PhysicalIndices.indexOf(deckIndex) + 1;
-  const showSlide = (deckIndex: number) => {
-    if (v4PhysicalIndices.indexOf(deckIndex) === -1) return false;
-    if (interactiveSlideIndex === undefined) return true;
-    return v4PhysicalIndices[interactiveSlideIndex] === deckIndex;
+  /** True when the slide is enabled (has data / not toggled off). Always renders enabled slides. */
+  const showSlide = (deckIndex: number) => v4PhysicalIndices.indexOf(deckIndex) !== -1;
+  /** True when slide should be visually hidden in interactive mode; overridden to visible by CSS in print. */
+  const slideHidden = (deckIndex: number) => {
+    if (interactiveSlideIndex === undefined) return false;
+    return v4PhysicalIndices[interactiveSlideIndex] !== deckIndex;
   };
 
   const prBullets = p.message_improvement_notes || p.pr_score_bullets || [];
@@ -1937,7 +1970,7 @@ function ReportDashboardV4({
     <div id="report-v4-template-order" className="report-v4-deck min-h-[100dvh]">
       {/* ── Slide 1: Title (cover) — same master grid, no outer card frame ── */}
       {showSlide(0) ? (
-      <Slide id="report-v4-slide-0" className="justify-center py-8 md:py-12 scroll-mt-24">
+      <Slide id="report-v4-slide-0" className="justify-center py-8 md:py-12 scroll-mt-24" hidden={slideHidden(0)}>
         <div className="relative max-w-6xl mx-auto w-full px-5 md:px-12 flex flex-col min-h-[min(100dvh,860px)] md:min-h-[720px]">
           <header className="flex flex-row items-start justify-between gap-6 shrink-0 pb-6 md:pb-8 border-b border-white/[0.06]">
             <div className="flex flex-col gap-2 shrink-0">
@@ -1966,13 +1999,12 @@ function ReportDashboardV4({
               // }}
               aria-hidden
             />
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold font-[family-name:var(--font-montserrat)] tracking-tight leading-[1.08]">
-              <span className="bg-gradient-to-r from-white via-[#E2E8F0] to-[#94A3B8] bg-clip-text text-transparent print:bg-none print:text-white">
-                Client campaign
-              </span>
-              <br />
+            <h1
+              className="font-extrabold font-[family-name:var(--font-montserrat)] tracking-tight leading-none"
+              style={{ fontSize: "clamp(1.75rem, 6vw, 4rem)" }}
+            >
               <span className="bg-gradient-to-r from-[#00E5FF] via-[#7B61FF] to-[#00FF9D] bg-clip-text text-transparent print:bg-none print:text-[#00E5FF]">
-                report
+                Client campaign report
               </span>
             </h1>
             <p className="mt-6 text-lg md:text-xl text-[#8B9AAF] font-medium max-w-2xl">
@@ -2015,6 +2047,7 @@ function ReportDashboardV4({
         total={totalSlides}
         sectionLabel="Section 1 · Executive summary"
         title="Executive Summary"
+        hidden={slideHidden(1)}
       >
         <p className="text-sm text-[#8B9AAF] max-w-2xl mb-6 leading-relaxed">
           Lead with the outcome, what changed, and why the campaign mattered now — reach, signal movement, and content volume.
@@ -2030,54 +2063,15 @@ function ReportDashboardV4({
       </V4DeckSlide>
       ) : null}
 
+      {/* ── Slide 2: Signal Score™ — circles (docx order: circles first) ── */}
       {showSlide(2) ? (
       <V4DeckSlide
         deckIndex={2}
         slide={slidePos(2)}
         total={totalSlides}
-        sectionLabel="Section 2 · Campaign overview"
-        title="Campaign Overview"
-      >
-        <div className="grid md:grid-cols-2 gap-4 md:gap-5 flex-1 content-start">
-          <div className="rounded-2xl bg-white/[0.04] p-5 md:p-6">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7B61FF] mb-3">Campaign thesis</p>
-            <p className="text-base md:text-lg text-[#E2E8F0] leading-relaxed">{p.campaign_type || "—"}</p>
-          </div>
-          <div className="rounded-2xl bg-white/[0.04] p-5 md:p-6">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#00FF9D] mb-3">Primary signal shift</p>
-            <p className="text-base md:text-lg text-[#E2E8F0] leading-relaxed">{p.algo_sentiment_bias || "—"}</p>
-          </div>
-        </div>
-      </V4DeckSlide>
-      ) : null}
-
-      {showSlide(3) ? (
-      <V4DeckSlide
-        deckIndex={3}
-        slide={slidePos(3)}
-        total={totalSlides}
-        sectionLabel="Section 3 · Signal score analysis"
-        title="Factor scores"
-      >
-        <p className="text-sm text-[#8B9AAF] max-w-2xl mb-5 leading-relaxed">
-          How execution, clarity, distribution, and engagement moved across the campaign — before vs after.
-        </p>
-        <div className="rounded-2xl bg-white/[0.04] p-4 md:p-5 max-w-3xl flex-1">
-          <ProgressBar label="Execution" before={p.execution_before || 0} after={p.execution_after || 0} />
-          <ProgressBar label="Clarity" before={p.clarity_before || 0} after={p.clarity_after || 0} />
-          <ProgressBar label="Distribution" before={p.distribution_before || 0} after={p.distribution_after || 0} />
-          <ProgressBar label="Engagement" before={p.engagement_axis_before || 0} after={p.engagement_axis_after || 0} />
-        </div>
-      </V4DeckSlide>
-      ) : null}
-
-      {showSlide(4) ? (
-      <V4DeckSlide
-        deckIndex={4}
-        slide={slidePos(4)}
-        total={totalSlides}
-        sectionLabel="Section 3 · Signal score analysis"
-        title="Signal score overview"
+        sectionLabel="Section 2 · Signal score analysis"
+        title="Signal Score™"
+        hidden={slideHidden(2)}
       >
         <p className="text-sm text-[#8B9AAF] max-w-2xl mb-5 leading-relaxed">
           Composite signal score before and after the campaign window.
@@ -2102,13 +2096,37 @@ function ReportDashboardV4({
       </V4DeckSlide>
       ) : null}
 
-      {showSlide(5) ? (
+      {/* ── Slide 3: Signal Breakdown — bars (docx order: bars second) ── */}
+      {showSlide(3) ? (
       <V4DeckSlide
-        deckIndex={5}
-        slide={slidePos(5)}
+        deckIndex={3}
+        slide={slidePos(3)}
         total={totalSlides}
-        sectionLabel="Section 4 · PR rewrite & message upgrade"
+        sectionLabel="Section 2 · Signal score analysis"
+        title="Signal Breakdown"
+        hidden={slideHidden(3)}
+      >
+        <p className="text-sm text-[#8B9AAF] max-w-2xl mb-5 leading-relaxed">
+          How execution, clarity, distribution, and engagement moved across the campaign — before vs after.
+        </p>
+        <div className="rounded-2xl bg-white/[0.04] p-4 md:p-5 max-w-3xl flex-1">
+          <ProgressBar label="Execution" before={p.execution_before || 0} after={p.execution_after || 0} />
+          <ProgressBar label="Clarity" before={p.clarity_before || 0} after={p.clarity_after || 0} />
+          <ProgressBar label="Distribution" before={p.distribution_before || 0} after={p.distribution_after || 0} />
+          <ProgressBar label="Engagement" before={p.engagement_axis_before || 0} after={p.engagement_axis_after || 0} />
+        </div>
+      </V4DeckSlide>
+      ) : null}
+
+      {/* ── Slide 4: PR Rewrite & Message Upgrade ── */}
+      {showSlide(4) ? (
+      <V4DeckSlide
+        deckIndex={4}
+        slide={slidePos(4)}
+        total={totalSlides}
+        sectionLabel="Section 3 · PR rewrite & message upgrade"
         title="PR Rewrite & Message Upgrade"
+        hidden={slideHidden(4)}
       >
         {(prRewritePairs.length > 0 || prBullets.length > 0) ? (
           <div className="space-y-4 w-full max-w-5xl">
@@ -2150,13 +2168,15 @@ function ReportDashboardV4({
       </V4DeckSlide>
       ) : null}
 
-      {showSlide(6) ? (
+      {/* ── Slide 5: Content Deployment ── */}
+      {showSlide(5) ? (
       <V4DeckSlide
-        deckIndex={6}
-        slide={slidePos(6)}
+        deckIndex={5}
+        slide={slidePos(5)}
         total={totalSlides}
-        sectionLabel="Section 5 · Content pack summary"
-        title="Content Pack Summary"
+        sectionLabel="Section 4 · Content deployment"
+        title="Content Deployment"
+        hidden={slideHidden(5)}
       >
         <p className="text-sm text-[#8B9AAF] mb-5 max-w-2xl">
           Assets created for social, owned, and direct-response channels.
@@ -2167,13 +2187,15 @@ function ReportDashboardV4({
       </V4DeckSlide>
       ) : null}
 
-      {showSlide(7) ? (
+      {/* ── Slide 6: Distribution Reach ── */}
+      {showSlide(6) ? (
       <V4DeckSlide
-        deckIndex={7}
-        slide={slidePos(7)}
+        deckIndex={6}
+        slide={slidePos(6)}
         total={totalSlides}
-        sectionLabel="Section 6 · Distribution strategy"
-        title="Distribution Strategy"
+        sectionLabel="Section 5 · Distribution reach"
+        title="Distribution Reach"
+        hidden={slideHidden(6)}
       >
         <p className="text-sm text-[#8B9AAF] mb-5 max-w-2xl">
           Where the campaign was deployed — click channel labels when links are set.
@@ -2184,92 +2206,18 @@ function ReportDashboardV4({
       </V4DeckSlide>
       ) : null}
 
-      {hasAmp && showSlide(8) ? (
-        <V4DeckSlide
-          deckIndex={8}
-          slide={slidePos(8)}
-          total={totalSlides}
-          sectionLabel="Section 7 · Amplification strategy"
-          title="Amplification Strategy"
-        >
-          <div className={p.ppc_enabled && p.influencer_enabled ? "grid lg:grid-cols-2 gap-5 flex-1" : "grid gap-5 flex-1"}>
-            {p.ppc_enabled && (
-              <div className="rounded-2xl bg-white/[0.04] p-4 md:p-5">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#00E5FF] mb-4">PPC</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <KpiCard label="Impressions" value={fmt(p.impressions)} compact />
-                  <KpiCard label="CTR" value={p.ctr != null ? `${p.ctr}%` : "—"} compact />
-                  <KpiCard label="CPC" value={p.cpc != null ? `$${p.cpc}` : "—"} compact />
-                  <KpiCard label="Video Views" value={fmt(p.video_views)} compact />
-                </div>
-              </div>
-            )}
-            {p.influencer_enabled && (
-              <div className="rounded-2xl bg-white/[0.04] p-4 md:p-5">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7B61FF] mb-4">Influencer</p>
-                <div className="grid grid-cols-3 gap-2 md:gap-3">
-                  <KpiCard label="Activated" value={fmt(p.influencers_activated)} compact />
-                  <KpiCard label="Reach" value={fmt(p.influencer_reach)} compact />
-                  <KpiCard label="Engagement" value={fmt(p.influencer_engagement)} compact />
-                </div>
-              </div>
-            )}
-          </div>
-        </V4DeckSlide>
-      ) : null}
-
-      {showSlide(hasAmp ? 9 : 8) ? (
+      {/* ── Slide 7: Engagement — big numbers (docx slide 7, before Top Content) ── */}
+      {showSlide(7) ? (
       <V4DeckSlide
-        deckIndex={hasAmp ? 9 : 8}
-        slide={slidePos(hasAmp ? 9 : 8)}
+        deckIndex={7}
+        slide={slidePos(7)}
         total={totalSlides}
-        sectionLabel={hasAmp ? "Section 8 · Narrative control" : "Section 8 · Narrative control"}
-        title="Narrative Control"
+        sectionLabel="Section 6 · Engagement"
+        title="Engagement"
+        hidden={slideHidden(7)}
       >
-        <div className="grid md:grid-cols-3 gap-3 md:gap-4 flex-1 content-start">
-          {[
-            {
-              phase: "Phase 1",
-              title: "Awareness",
-              detail:
-                !p.executive_summary_enabled
-                  ? "How the campaign introduced the story and why it mattered now."
-                  : p.campaign_type || "How the campaign introduced the story and why it mattered now.",
-            },
-            {
-              phase: "Phase 2",
-              title: "Validation",
-              detail:
-                !p.executive_summary_enabled
-                  ? "Proof points that reinforced credibility and execution."
-                  : p.algo_sentiment_bias || "Proof points that reinforced credibility and execution.",
-            },
-            { phase: "Phase 3", title: "Momentum", detail: p.recommended_cta_text || "How attention extends into the next cadence or announcement." },
-          ].map((row, i) => (
-            <div
-              key={row.phase}
-              className="relative overflow-hidden rounded-2xl bg-white/[0.04] p-5"
-            >
-              <span className="absolute top-3 right-3 text-[10px] font-mono font-bold text-white/20 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
-              <p className="text-[10px] text-[#8B9AAF] uppercase tracking-widest">{row.phase}</p>
-              <p className="text-base font-semibold text-white mt-2">{row.title}</p>
-              <p className="text-xs text-[#94A3B8] mt-3 leading-relaxed">{row.detail}</p>
-            </div>
-          ))}
-        </div>
-      </V4DeckSlide>
-      ) : null}
-
-      {showSlide(hasAmp ? 10 : 9) ? (
-      <V4DeckSlide
-        deckIndex={hasAmp ? 10 : 9}
-        slide={slidePos(hasAmp ? 10 : 9)}
-        total={totalSlides}
-        sectionLabel={hasAmp ? "Section 9 · Campaign results" : "Section 9 · Campaign results"}
-        title="Campaign Results Dashboard"
-      >
-        <p className="text-sm text-[#8B9AAF] mb-5">Engagement mix for the reporting period.</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 flex-1 content-start">
+        <p className="text-sm text-[#8B9AAF] mb-8 max-w-2xl">Engagement mix for the reporting period.</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 flex-1 content-center">
           <KpiCard label="Likes" value={fmt(p.likes)} hero color="#00E5FF" />
           <KpiCard label="Comments" value={fmt(p.comments)} hero color="#7B61FF" />
           <KpiCard label="Shares" value={fmt(p.shares)} hero color="#00FF9D" />
@@ -2278,13 +2226,115 @@ function ReportDashboardV4({
       </V4DeckSlide>
       ) : null}
 
-      {showSlide(hasAmp ? 11 : 10) ? (
+      {/* ── Slide 8: Top Content — screenshot cards (docx slide 8) ── */}
+      {showSlide(8) ? (
       <V4DeckSlide
-        deckIndex={hasAmp ? 11 : 10}
-        slide={slidePos(hasAmp ? 11 : 10)}
+        deckIndex={8}
+        slide={slidePos(8)}
         total={totalSlides}
-        sectionLabel={hasAmp ? "Section 10 · Strategic recommendations" : "Section 10 · Strategic recommendations"}
-        title="Strategic Recommendations"
+        sectionLabel="Section 7 · Top content"
+        title="Top Content"
+        hidden={slideHidden(8)}
+      >
+        <p className="text-sm text-[#8B9AAF] mb-5 max-w-2xl">
+          Highest-performing assets from the campaign window.
+        </p>
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 flex-1 content-start">
+          {(p.top_content || []).slice(0, 3).map((item, i) => (
+            <div key={i} className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 flex flex-col gap-3">
+              {item.screenshot_data_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.screenshot_data_url} alt="" className="rounded-xl w-full object-cover aspect-video" />
+              )}
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-[#E2E8F0]">{item.platform || "—"}</p>
+                <p className="text-sm font-bold text-[#00E5FF] tabular-nums">{fmt(item.engagement_count)}</p>
+              </div>
+              <p className="text-xs text-[#8B9AAF] leading-relaxed flex-1">{item.why_it_worked || "—"}</p>
+              {item.content_url && (
+                <a href={item.content_url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#00E5FF] hover:underline">
+                  View post →
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      </V4DeckSlide>
+      ) : null}
+
+      {/* ── Slide 9: PPC Performance — separate slide (docx slide 9) ── */}
+      {showSlide(9) ? (
+      <V4DeckSlide
+        deckIndex={9}
+        slide={slidePos(9)}
+        total={totalSlides}
+        sectionLabel="Section 8 · PPC performance"
+        title="PPC Performance"
+        hidden={slideHidden(9)}
+      >
+        <p className="text-sm text-[#8B9AAF] mb-6 max-w-2xl">Paid performance metrics for the campaign window.</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 flex-1 content-start">
+          <KpiCard label="Impressions" value={fmt(p.impressions)} hero color="#00E5FF" />
+          <KpiCard label="CTR" value={p.ctr != null ? `${p.ctr}%` : "—"} hero color="#7B61FF" />
+          <KpiCard label="CPC" value={p.cpc != null ? `$${p.cpc}` : "—"} hero color="#00FF9D" />
+          <KpiCard label="Video Views" value={fmt(p.video_views)} hero color="#F59E0B" />
+        </div>
+      </V4DeckSlide>
+      ) : null}
+
+      {/* ── Slide 10: Influencer Impact — separate slide (docx slide 10) ── */}
+      {showSlide(10) ? (
+      <V4DeckSlide
+        deckIndex={10}
+        slide={slidePos(10)}
+        total={totalSlides}
+        sectionLabel="Section 9 · Influencer impact"
+        title="Influencer Impact"
+        hidden={slideHidden(10)}
+      >
+        <p className="text-sm text-[#8B9AAF] mb-6 max-w-2xl">Community-driven amplification increased organic visibility.</p>
+        <div className="grid grid-cols-3 gap-4 md:gap-6 flex-1 content-start max-w-2xl">
+          <KpiCard label="Activated" value={fmt(p.influencers_activated)} hero color="#7B61FF" />
+          <KpiCard label="Total Reach" value={fmt(p.influencer_reach)} hero color="#00E5FF" />
+          <KpiCard label="Engagement" value={fmt(p.influencer_engagement)} hero color="#00FF9D" />
+        </div>
+      </V4DeckSlide>
+      ) : null}
+
+      {/* ── Slide 11: Market Impact — qualitative bullets (docx slide 11) ── */}
+      {showSlide(11) ? (
+      <V4DeckSlide
+        deckIndex={11}
+        slide={slidePos(11)}
+        total={totalSlides}
+        sectionLabel="Section 10 · Market impact"
+        title="Market Impact"
+        hidden={slideHidden(11)}
+      >
+        <p className="text-xs text-[#FF6B6B] font-bold uppercase tracking-widest mb-5 flex items-center gap-2">
+          <span className="px-2 py-0.5 rounded bg-[#FF6B6B]/12 border border-[#FF6B6B]/25">COMPLIANCE</span>
+          Qualitative only — no stock-price claims
+        </p>
+        <div className="space-y-3 max-w-2xl flex-1">
+          {(p.market_impact_bullets || []).map((bullet, i) => (
+            <div key={i} className="flex items-start gap-3 rounded-2xl bg-white/[0.04] px-4 py-3 border border-white/[0.06]">
+              <span className="text-[#00E5FF] mt-1 shrink-0">◆</span>
+              <p className="text-sm text-[#C5D0E0] leading-relaxed">{bullet}</p>
+            </div>
+          ))}
+        </div>
+      </V4DeckSlide>
+      ) : null}
+
+      {/* ── Slide 12: Next Steps / Strategic Recs (docx slide 12) ── */}
+      {showSlide(12) ? (
+      <V4DeckSlide
+        deckIndex={12}
+        slide={slidePos(12)}
+        total={totalSlides}
+        sectionLabel="Section 11 · Next steps"
+        title="Sustain Momentum"
+        hidden={slideHidden(12)}
       >
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 flex-1 items-start">
           <div>
@@ -2356,16 +2406,59 @@ export function ReportViewer({
   );
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [v4DeckIndex, setV4DeckIndex] = useState(0);
-  /** During browser print, mount every Report 4 slide so each `.pdf-slide` can paginate (otherwise only one slide exists in the DOM). */
-  const [v4PrintMountAllSlides, setV4PrintMountAllSlides] = useState(false);
   const currentSlideRef = useRef(currentSlide);
   currentSlideRef.current = currentSlide;
 
+  // Inject critical print CSS that cannot be overridden by stale stylesheet caches.
+  // Root cause of blank pages: min-h-screen on .pdf-slide equals SCREEN height (1600px+),
+  // creating 2–3 blank overflow pages per slide. This forces min-height: 0 in print.
+  useEffect(() => {
+    const STYLE_ID = "v4-print-overrides";
+    if (document.getElementById(STYLE_ID)) return;
+    const el = document.createElement("style");
+    el.id = STYLE_ID;
+    el.textContent = [
+      "@media print{",
+      ".pdf-slide{min-height:0!important;break-after:page!important;page-break-after:always!important}",
+      ".pdf-slide>div{min-height:0!important}",
+      ".v4-slide-hidden{display:flex!important;flex-direction:column!important}",
+      "}",
+    ].join("");
+    document.head.appendChild(el);
+    return () => { document.getElementById(STYLE_ID)?.remove(); };
+  }, []);
+
   const v4DeckCount = useMemo(() => {
-    const hasAmp = !!(p.ppc_enabled || p.influencer_enabled);
-    const hasExec = !!p.executive_summary_enabled;
-    return 11 + (hasAmp ? 1 : 0) - (hasExec ? 0 : 2);
-  }, [p.ppc_enabled, p.influencer_enabled, p.executive_summary_enabled]);
+    const hasSignal      = p.signal_score_enabled !== false;
+    const hasPrRewrite   = (p.pr_rewrite_pairs?.length ?? 0) > 0 || (p.message_improvement_notes?.length ?? 0) > 0;
+    const hasContent     = p.content_deployment_enabled !== false;
+    const hasDist        = p.distribution_enabled !== false;
+    const hasResults     = p.engagement_enabled !== false || (p.results_dashboard_rows?.length ?? 0) > 0;
+    const hasTopContent  = (p.top_content?.length ?? 0) > 0;
+    const hasMarketImpact = (p.market_impact_bullets?.length ?? 0) > 0;
+    const hasRecs        = p.next_steps_enabled !== false;
+    return (
+      1 +
+      (p.executive_summary_enabled ? 1 : 0) +
+      (hasSignal ? 2 : 0) +
+      (hasPrRewrite ? 1 : 0) +
+      (hasContent ? 1 : 0) +
+      (hasDist ? 1 : 0) +
+      (hasResults ? 1 : 0) +
+      (hasTopContent ? 1 : 0) +
+      (p.ppc_enabled ? 1 : 0) +
+      (p.influencer_enabled ? 1 : 0) +
+      (hasMarketImpact ? 1 : 0) +
+      (hasRecs ? 1 : 0)
+    );
+  }, [
+    p.executive_summary_enabled, p.signal_score_enabled,
+    p.pr_rewrite_pairs, p.message_improvement_notes,
+    p.content_deployment_enabled, p.distribution_enabled,
+    p.engagement_enabled, p.results_dashboard_rows,
+    p.top_content, p.ppc_enabled, p.influencer_enabled,
+    p.market_impact_bullets, p.next_steps_enabled,
+  ]);
 
   const switchView = useCallback((index: number) => {
     const target = Math.max(0, Math.min(index, 3));
@@ -2421,26 +2514,6 @@ export function ReportViewer({
     return () => clearTimeout(t);
   }, [pdfMode]);
 
-  useEffect(() => {
-    if (pdfMode) return;
-    const onBeforePrint = () => {
-      if (currentSlideRef.current !== 3) return;
-      flushSync(() => setV4PrintMountAllSlides(true));
-    };
-    const onAfterPrint = () => setV4PrintMountAllSlides(false);
-    window.addEventListener("beforeprint", onBeforePrint);
-    window.addEventListener("afterprint", onAfterPrint);
-    const mq = window.matchMedia?.("print");
-    const onMq = () => {
-      if (!mq?.matches) setV4PrintMountAllSlides(false);
-    };
-    mq?.addEventListener("change", onMq);
-    return () => {
-      window.removeEventListener("beforeprint", onBeforePrint);
-      window.removeEventListener("afterprint", onAfterPrint);
-      mq?.removeEventListener("change", onMq);
-    };
-  }, [pdfMode]);
 
   useEffect(() => {
     if (!pdfMode) {
@@ -3230,7 +3303,7 @@ export function ReportViewer({
             campaignEnd={campaignEnd}
             payload={p}
             interactiveSlideIndex={
-              pdfMode || v4PrintMountAllSlides ? undefined : v4DeckIndex
+              pdfMode ? undefined : v4DeckIndex
             }
           />
         )}
