@@ -98,11 +98,27 @@ body {
     min-height: 100% !important;
   }
 
+  /*
+   * KEY FIX: min-h-screen on each slide equals the SCREEN height (can be 1600px+),
+   * causing 2-3 blank overflow pages per slide in landscape print.
+   * Force 0 so each slide only occupies its content height.
+   */
   .pdf-slide {
+    min-height: 0 !important;
     break-after: page;
     page-break-after: always;
-    /* 100vh = one viewport per sheet in PDF → fights tall slides; let height follow content */
-    min-height: 0;
+  }
+
+  /* Also remove forced min-heights from inner slide containers */
+  .pdf-slide > div {
+    min-height: 0 !important;
+  }
+
+  /* Slides hidden interactively (display:none inline style) must show when printing.
+     !important beats inline styles per CSS spec. */
+  .v4-slide-hidden {
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   #extended .pdf-slide {
